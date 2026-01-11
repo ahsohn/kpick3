@@ -699,6 +699,28 @@
 
         <div id="admin" class="tab-content">
             <div class="admin-section">
+                <h3>🧪 Test Mode (Off-Season Testing)</h3>
+                <p>Use this to create fake game data for testing when the season is over:</p>
+
+                <div style="margin: 1.5rem 0;">
+                    <label for="test-week" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Test Week Number:</label>
+                    <input type="number" id="test-week" value="1" min="1" max="18" style="padding: 0.5rem; border: 2px solid var(--border); border-radius: 4px; background: var(--surface-light); color: var(--text); margin-bottom: 1rem;">
+
+                    <label for="test-num-games" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Number of Test Games:</label>
+                    <input type="number" id="test-num-games" value="5" min="1" max="16" style="padding: 0.5rem; border: 2px solid var(--border); border-radius: 4px; background: var(--surface-light); color: var(--text); margin-bottom: 1rem;">
+
+                    <button onclick="generateTestData()" style="padding: 0.75rem 1.5rem; background: var(--warning); border: none; border-radius: 8px; color: var(--background); font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;">Generate Test Games</button>
+                    <button onclick="clearTestData()" style="padding: 0.75rem 1.5rem; background: #ef4444; border: none; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; margin-left: 0.5rem;">Clear Test Data</button>
+                </div>
+
+                <div id="test-output" style="background: var(--surface-light); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></div>
+
+                <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted);">
+                    <strong>Note:</strong> Test games will have times starting 1 hour from now, spaced 30 minutes apart. This lets you test the deadline enforcement feature. Copy the generated data and paste it into your Google Sheet's "Games" tab (below any real data).
+                </p>
+            </div>
+
+            <div class="admin-section">
                 <h3>📋 Setup Instructions</h3>
                 
                 <p><strong>Step 1: Set up Google Apps Script (one-time)</strong></p>
@@ -894,6 +916,35 @@
                 const gamesText = await gamesResponse.text();
                 const gamesJson = JSON.parse(gamesText.substring(47).slice(0, -2));
                 
+                // Helper function to parse Google Sheets date/time
+                function parseGoogleSheetsDate(value) {
+                    if (!value) return null;
+
+                    // If it's already a formatted string (from f property), use it
+                    if (typeof value === 'string' && !value.startsWith('Date(')) {
+                        return value;
+                    }
+
+                    // If it's a Date object string like "Date(2026,11,25,13,0,0)"
+                    if (typeof value === 'string' && value.startsWith('Date(')) {
+                        const match = value.match(/Date\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)/);
+                        if (match) {
+                            const [, year, month, day, hour, minute, second] = match;
+                            const date = new Date(parseInt(year), parseInt(month), parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
+                            return date.toLocaleString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                            });
+                        }
+                    }
+
+                    return value;
+                }
+
                 // Parse games data
                 gameData = {};
                 gamesJson.table.rows.forEach(row => {
@@ -903,9 +954,13 @@
                     const home = row.c[3]?.v;
                     const spread = row.c[4]?.v;
                     const awaySpread = row.c[5]?.v;
-                    const gameTime = row.c[6]?.v;
+                    const gameTimeRaw = row.c[6]?.v;
+                    const gameTimeFormatted = row.c[6]?.f; // Formatted value from Google Sheets
                     const winner = row.c[7]?.v;
-                    
+
+                    // Use formatted value if available, otherwise parse the raw value
+                    const gameTime = gameTimeFormatted || parseGoogleSheetsDate(gameTimeRaw);
+
                     if (week && gameId) {
                         if (!gameData[week]) gameData[week] = [];
                         gameData[week].push({
@@ -1395,6 +1450,68 @@
                     container.innerHTML = '';
                 }, 10000);
             }
+        }
+
+        // Generate test data for off-season testing
+        function generateTestData() {
+            const week = parseInt(document.getElementById('test-week').value);
+            const numGames = parseInt(document.getElementById('test-num-games').value);
+
+            const teams = [
+                'Kansas City Chiefs', 'Buffalo Bills', 'Baltimore Ravens', 'San Francisco 49ers',
+                'Dallas Cowboys', 'Philadelphia Eagles', 'Miami Dolphins', 'Detroit Lions',
+                'Los Angeles Rams', 'Cleveland Browns', 'Jacksonville Jaguars', 'Cincinnati Bengals',
+                'New Orleans Saints', 'Green Bay Packers', 'Minnesota Vikings', 'Tampa Bay Buccaneers',
+                'Seattle Seahawks', 'Los Angeles Chargers', 'Pittsburgh Steelers', 'Houston Texans',
+                'Atlanta Falcons', 'New York Jets', 'Las Vegas Raiders', 'Tennessee Titans',
+                'Indianapolis Colts', 'Washington Commanders', 'Denver Broncos', 'New England Patriots',
+                'Carolina Panthers', 'Chicago Bears', 'Arizona Cardinals', 'New York Giants'
+            ];
+
+            let output = 'Week\tGameID\tAway\tHome\tSpread\tAwaySpread\tGameTime\tWinner\n';
+            const now = new Date();
+
+            for (let i = 0; i < numGames; i++) {
+                // Pick two random different teams
+                const awayIndex = Math.floor(Math.random() * teams.length);
+                let homeIndex = Math.floor(Math.random() * teams.length);
+                while (homeIndex === awayIndex) {
+                    homeIndex = Math.floor(Math.random() * teams.length);
+                }
+
+                const awayTeam = teams[awayIndex];
+                const homeTeam = teams[homeIndex];
+
+                // Generate random spread between -14 and +14
+                const awaySpread = (Math.random() * 28 - 14).toFixed(1);
+                const spreadValue = parseFloat(awaySpread);
+                const favoredTeam = spreadValue < 0 ? awayTeam.split(' ').pop() : homeTeam.split(' ').pop();
+                const spread = `${favoredTeam} ${Math.abs(spreadValue).toFixed(1)}`;
+
+                // Game time: starts 1 hour from now, each game 30 minutes apart
+                const gameTime = new Date(now.getTime() + (60 + i * 30) * 60000);
+                const gameTimeStr = gameTime.toLocaleString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+
+                const gameId = `${week}-${i + 1}`;
+
+                output += `${week}\t${gameId}\t${awayTeam}\t${homeTeam}\t${spread}\t${awaySpread}\t${gameTimeStr}\t\n`;
+            }
+
+            document.getElementById('test-output').textContent = output;
+            showMessage('success', `Generated ${numGames} test games for Week ${week}! Copy the data above and paste into your Google Sheet.`);
+        }
+
+        // Clear test data display
+        function clearTestData() {
+            document.getElementById('test-output').textContent = '';
+            showMessage('info', 'Test data display cleared.');
         }
     </script>
 </body>
