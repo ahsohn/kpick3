@@ -489,7 +489,16 @@
 
         @media (max-width: 768px) {
             h1 {
-                font-size: 2.5rem;
+                font-size: 2rem;
+                letter-spacing: 2px;
+            }
+
+            .season {
+                font-size: 0.95rem;
+            }
+
+            .container {
+                padding: 1rem;
             }
 
             .games-grid {
@@ -497,12 +506,65 @@
             }
 
             .tabs {
-                flex-wrap: wrap;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                gap: 0.5rem;
+            }
+
+            .tabs::-webkit-scrollbar {
+                display: none;
             }
 
             .tab {
-                font-size: 1.1rem;
+                font-size: 1rem;
                 padding: 0.6rem 1rem;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            .week-selector {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .week-selector select,
+            .week-selector button {
+                width: 100%;
+            }
+
+            .user-section input {
+                max-width: 100%;
+            }
+
+            .submit-picks {
+                max-width: 100%;
+                font-size: 1.2rem;
+            }
+
+            .game-card {
+                padding: 1rem;
+            }
+
+            .team-option {
+                padding: 0.75rem;
+            }
+
+            .standings-table {
+                overflow-x: auto;
+            }
+
+            .standings-table table {
+                min-width: 600px;
+            }
+
+            /* Touch-friendly tap targets */
+            .team-option,
+            button,
+            .tab {
+                min-height: 44px;
+                min-width: 44px;
             }
         }
 
@@ -538,13 +600,26 @@
     </div>
 
     <div class="container">
-        <div class="user-section">
+        <div class="user-section" id="login-section">
             <label for="username">Your Name:</label>
-            <input type="text" id="username" placeholder="Enter your name to participate">
+            <input type="text" id="username" placeholder="Enter your name to participate" autocomplete="username">
+            <button id="login-btn" style="margin-top: 1rem; padding: 0.75rem 2rem; background: var(--primary); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;">Login</button>
+        </div>
+
+        <div class="user-section" id="logged-in-section" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <label style="display: inline; margin-right: 0.5rem;">Logged in as:</label>
+                    <strong id="logged-in-username" style="color: var(--primary); font-size: 1.2rem;"></strong>
+                </div>
+                <button id="logout-btn" style="padding: 0.5rem 1.5rem; background: var(--surface-light); border: 2px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 600; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; font-size: 0.85rem;">Logout</button>
+            </div>
         </div>
 
         <div class="tabs">
             <button class="tab active" data-tab="make-picks">Make Picks</button>
+            <button class="tab" data-tab="my-picks">My Picks</button>
+            <button class="tab" data-tab="all-picks">All Picks</button>
             <button class="tab" data-tab="standings">Standings</button>
             <button class="tab" data-tab="admin">Admin</button>
         </div>
@@ -572,6 +647,29 @@
             </div>
 
             <button class="submit-picks" id="submit-picks" disabled>Submit Picks</button>
+        </div>
+
+        <div id="my-picks" class="tab-content">
+            <div id="my-picks-content">
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    Please login to view your pick history
+                </div>
+            </div>
+        </div>
+
+        <div id="all-picks" class="tab-content">
+            <div class="week-selector">
+                <label for="all-picks-week-select">Week:</label>
+                <select id="all-picks-week-select">
+                    <option value="1">Week 1</option>
+                </select>
+                <button onclick="loadAllPicks()">Load All Picks</button>
+            </div>
+            <div id="all-picks-content">
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    Select a week and click "Load All Picks" to see everyone's picks (only visible after games start)
+                </div>
+            </div>
         </div>
 
         <div id="standings" class="tab-content">
@@ -716,6 +814,8 @@
         let standingsData = [];
         let selectedGames = new Set();
         let currentWeek = 1;
+        let currentUser = null;
+        const CURRENT_USER_KEY = 'nfl-pickem-current-user';
 
         // Initialize
         window.addEventListener('load', () => {
@@ -724,10 +824,59 @@
                 showMessage('error', 'Please edit the HTML file and add your Sheet ID and Apps Script URL at the top of the script section.');
                 return;
             }
-            
+
+            // Check for saved user
+            const savedUser = localStorage.getItem(CURRENT_USER_KEY);
+            if (savedUser) {
+                currentUser = savedUser;
+                showLoggedInState();
+            }
+
             // Auto-load data on page load
             loadData();
         });
+
+        // Login functionality
+        document.getElementById('login-btn').addEventListener('click', () => {
+            const username = document.getElementById('username').value.trim();
+            if (!username) {
+                showMessage('error', 'Please enter your name to login');
+                return;
+            }
+            currentUser = username;
+            localStorage.setItem(CURRENT_USER_KEY, username);
+            showLoggedInState();
+            showMessage('success', `Welcome, ${username}!`);
+            loadMyPicks();
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to logout?')) {
+                currentUser = null;
+                localStorage.removeItem(CURRENT_USER_KEY);
+                showLoginState();
+                showMessage('info', 'You have been logged out');
+            }
+        });
+
+        // Allow enter key to login
+        document.getElementById('username').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('login-btn').click();
+            }
+        });
+
+        function showLoggedInState() {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('logged-in-section').style.display = 'block';
+            document.getElementById('logged-in-username').textContent = currentUser;
+        }
+
+        function showLoginState() {
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('logged-in-section').style.display = 'none';
+            document.getElementById('username').value = '';
+        }
 
         // Load data from Google Sheets
         async function loadData() {
@@ -831,19 +980,37 @@
         function populateWeekSelectors() {
             const weeks = Object.keys(gameData).sort((a, b) => a - b);
             const weekSelect = document.getElementById('week-select');
-            
+            const allPicksWeekSelect = document.getElementById('all-picks-week-select');
+
             if (weeks.length > 0) {
-                weekSelect.innerHTML = weeks.map(w => `<option value="${w}">Week ${w}</option>`).join('');
+                const options = weeks.map(w => `<option value="${w}">Week ${w}</option>`).join('');
+                weekSelect.innerHTML = options;
+                allPicksWeekSelect.innerHTML = options;
+            }
+        }
+
+        // Helper function to check if game has started
+        function hasGameStarted(gameTimeStr) {
+            if (!gameTimeStr || gameTimeStr === 'TBD') return false;
+            try {
+                const gameTime = new Date(gameTimeStr);
+                const now = new Date();
+                return now >= gameTime;
+            } catch (e) {
+                return false;
             }
         }
 
         // Load games for selected week
         function loadGames() {
             const week = document.getElementById('week-select').value;
-            const username = document.getElementById('username').value.trim();
+            if (!currentUser) {
+                showMessage('error', 'Please login first to make picks!');
+                return;
+            }
+
             currentWeek = week;
             selectedGames.clear();
-            updatePicksCount();
 
             const games = gameData[week];
             const gamesGrid = document.getElementById('games-grid');
@@ -853,38 +1020,47 @@
                 return;
             }
 
-            // Check if user already has picks for this week
-            const existingPicks = picksData.find(p => p.username === username && p.week == week);
-            const isLocked = existingPicks !== undefined;
-
-            if (isLocked) {
-                showMessage('info', `You've already submitted picks for Week ${week}. Your picks: ${existingPicks.picks}`);
-            }
+            // Get user's existing picks for this week
+            const userPicksForWeek = picksData.filter(p => p.username === currentUser && p.week == week);
+            const allUserPicks = userPicksForWeek.flatMap(p => p.picks.split(',')).map(pick => pick.trim());
 
             gamesGrid.innerHTML = games.map(game => {
                 const awaySpreadDisplay = game.awaySpread > 0 ? `+${game.awaySpread}` : game.awaySpread;
                 const homeSpreadDisplay = game.awaySpread < 0 ? `+${Math.abs(game.awaySpread)}` : -game.awaySpread;
-                
+
+                const gameStarted = hasGameStarted(game.time);
+                const awayPicked = allUserPicks.includes(`${game.id}-away`);
+                const homePicked = allUserPicks.includes(`${game.id}-home`);
+                const gameLocked = gameStarted || awayPicked || homePicked;
+
+                let statusBadge = '';
+                if (gameStarted) {
+                    statusBadge = '<div style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; margin-bottom: 0.5rem;">Game Started</div>';
+                } else if (awayPicked || homePicked) {
+                    statusBadge = '<div style="background: rgba(16, 185, 129, 0.2); color: var(--success); padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; margin-bottom: 0.5rem;">Pick Submitted</div>';
+                }
+
                 return `
                 <div class="game-card">
+                    ${statusBadge}
                     <div class="game-time">${game.time || 'TBD'}</div>
-                    <div class="team-option ${isLocked ? 'locked' : ''}" data-game-id="${game.id}" data-team="away">
+                    <div class="team-option ${gameLocked ? 'locked' : ''} ${awayPicked ? 'selected' : ''}" data-game-id="${game.id}" data-team="away" data-game-time="${game.time || ''}">
                         <span class="team-name">${game.away}</span>
                         <span class="spread">${awaySpreadDisplay}</span>
                     </div>
-                    <div class="team-option ${isLocked ? 'locked' : ''}" data-game-id="${game.id}" data-team="home">
+                    <div class="team-option ${gameLocked ? 'locked' : ''} ${homePicked ? 'selected' : ''}" data-game-id="${game.id}" data-team="home" data-game-time="${game.time || ''}">
                         <span class="team-name">${game.home}</span>
                         <span class="spread">${homeSpreadDisplay}</span>
                     </div>
                 </div>
             `}).join('');
 
-            // Add click handlers only if not locked
-            if (!isLocked) {
-                document.querySelectorAll('.team-option:not(.locked)').forEach(option => {
-                    option.addEventListener('click', () => selectTeam(option));
-                });
-            }
+            // Add click handlers only for unlocked games
+            document.querySelectorAll('.team-option:not(.locked)').forEach(option => {
+                option.addEventListener('click', () => selectTeam(option));
+            });
+
+            updatePicksCount();
         }
 
         // Select a team
@@ -920,42 +1096,71 @@
         function updatePicksCount() {
             const count = selectedGames.size;
             document.getElementById('picks-count').textContent = count;
-            document.getElementById('submit-picks').disabled = count !== 3;
+
+            // Get total picks already made this week
+            const userPicksForWeek = picksData.filter(p => p.username === currentUser && p.week == currentWeek);
+            const totalPicksMade = userPicksForWeek.flatMap(p => p.picks.split(',')).length;
+
+            // Can submit 1-3 picks, but total for week can't exceed 3
+            const canSubmit = count > 0 && count <= 3 && (totalPicksMade + count) <= 3;
+            document.getElementById('submit-picks').disabled = !canSubmit;
+
+            // Update button text to show remaining picks
+            const remaining = 3 - totalPicksMade;
+            const submitBtn = document.getElementById('submit-picks');
+            if (remaining === 0) {
+                submitBtn.textContent = `All Picks Submitted for Week ${currentWeek}`;
+            } else if (count > 0) {
+                submitBtn.textContent = `Submit ${count} Pick${count > 1 ? 's' : ''} (${remaining - count} remaining)`;
+            } else {
+                submitBtn.textContent = `Select Picks (${remaining} remaining)`;
+            }
         }
 
         // Submit picks
         document.getElementById('submit-picks').addEventListener('click', async () => {
-            const username = document.getElementById('username').value.trim();
-            
-            if (!username) {
-                showMessage('error', 'Please enter your name first!');
+            if (!currentUser) {
+                showMessage('error', 'Please login first!');
                 return;
             }
 
-            if (selectedGames.size !== 3) {
-                showMessage('error', 'You must select exactly 3 games!');
+            if (selectedGames.size === 0) {
+                showMessage('error', 'Please select at least one game!');
                 return;
             }
 
-            if (!SHEET_ID) {
+            // Check total picks for the week won't exceed 3
+            const userPicksForWeek = picksData.filter(p => p.username === currentUser && p.week == currentWeek);
+            const totalPicksMade = userPicksForWeek.flatMap(p => p.picks.split(',')).length;
+
+            if (totalPicksMade + selectedGames.size > 3) {
+                showMessage('error', `You can only make 3 picks per week. You already have ${totalPicksMade} pick(s).`);
+                return;
+            }
+
+            if (!SHEET_ID || !SCRIPT_URL) {
                 showMessage('error', 'Google Sheet not configured. See Admin tab.');
                 return;
             }
 
-            if (!SCRIPT_URL) {
-                showMessage('error', 'Apps Script URL not configured. See Admin tab for setup instructions.');
-                return;
+            // Check if any selected games have started
+            let hasStartedGames = false;
+            for (const pick of selectedGames) {
+                const [gameId] = pick.split('-');
+                const game = gameData[currentWeek].find(g => g.id === gameId);
+                if (game && hasGameStarted(game.time)) {
+                    hasStartedGames = true;
+                    break;
+                }
             }
 
-            // Check if picks already exist
-            const existingPicks = picksData.find(p => p.username === username && p.week == currentWeek);
-            if (existingPicks) {
-                showMessage('error', `You've already submitted picks for Week ${currentWeek}!`);
+            if (hasStartedGames) {
+                showMessage('error', 'One or more of your selected games has already started!');
                 return;
             }
 
             const picksString = Array.from(selectedGames).join(',');
-            
+
             showMessage('info', 'Submitting picks to Google Sheets...');
 
             try {
@@ -967,7 +1172,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        username: username,
+                        username: currentUser,
                         week: currentWeek,
                         picks: picksString
                     })
@@ -975,14 +1180,17 @@
 
                 // Note: With no-cors mode, we can't read the response
                 // But if no error is thrown, the request was sent successfully
-                showMessage('success', `Picks submitted successfully for Week ${currentWeek}! Refresh the page in a few seconds to see them.`);
-                
+                showMessage('success', `${selectedGames.size} pick(s) submitted successfully for Week ${currentWeek}!`);
+
                 selectedGames.clear();
                 updatePicksCount();
-                
+
                 // Reload data after a short delay
                 setTimeout(() => {
-                    loadData();
+                    loadData().then(() => {
+                        loadGames(); // Reload games to show updated status
+                        loadMyPicks(); // Refresh user's pick history
+                    });
                 }, 2000);
 
             } catch (error) {
@@ -1014,11 +1222,174 @@
             `).join('');
         }
 
+        // Load user's pick history
+        function loadMyPicks() {
+            const container = document.getElementById('my-picks-content');
+
+            if (!currentUser) {
+                container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Please login to view your pick history</div>';
+                return;
+            }
+
+            const myPicks = picksData.filter(p => p.username === currentUser);
+
+            if (myPicks.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">You haven\'t made any picks yet. Go to "Make Picks" to get started!</div>';
+                return;
+            }
+
+            // Group picks by week
+            const picksByWeek = {};
+            myPicks.forEach(pick => {
+                if (!picksByWeek[pick.week]) {
+                    picksByWeek[pick.week] = [];
+                }
+                picksByWeek[pick.week].push(pick);
+            });
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 2rem;">';
+
+            Object.keys(picksByWeek).sort((a, b) => b - a).forEach(week => {
+                const weekPicks = picksByWeek[week];
+                const allPicksForWeek = weekPicks.flatMap(p => p.picks.split(',')).map(pick => pick.trim());
+
+                html += `
+                    <div class="admin-section">
+                        <h3 style="color: var(--primary); font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; margin-bottom: 1rem;">Week ${week}</h3>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                `;
+
+                allPicksForWeek.forEach(pick => {
+                    const [gameId, team] = pick.split('-');
+                    const game = gameData[week]?.find(g => g.id === gameId);
+
+                    if (game) {
+                        const teamName = team === 'away' ? game.away : game.home;
+                        const spread = team === 'away' ? game.awaySpread : -game.awaySpread;
+                        const spreadDisplay = spread > 0 ? `+${spread}` : spread;
+
+                        let resultBadge = '';
+                        if (game.winner) {
+                            const won = game.winner === team;
+                            resultBadge = won
+                                ? '<span style="background: rgba(16, 185, 129, 0.2); color: var(--success); padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-left: 1rem;">WIN</span>'
+                                : '<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-left: 1rem;">LOSS</span>';
+                        } else {
+                            resultBadge = '<span style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-left: 1rem;">PENDING</span>';
+                        }
+
+                        html += `
+                            <div style="background: var(--surface-light); padding: 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                <div>
+                                    <strong style="font-size: 1.1rem;">${teamName}</strong>
+                                    <span style="color: var(--primary); font-weight: 700; margin-left: 0.5rem;">${spreadDisplay}</span>
+                                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">${game.away} @ ${game.home}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">${game.time || 'TBD'}</div>
+                                </div>
+                                <div>
+                                    ${resultBadge}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                html += `</div></div>`;
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // Load all users' picks for a week
+        function loadAllPicks() {
+            const week = document.getElementById('all-picks-week-select').value;
+            const container = document.getElementById('all-picks-content');
+
+            const games = gameData[week];
+            if (!games || games.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No games available for this week.</div>';
+                return;
+            }
+
+            const weekPicks = picksData.filter(p => p.week == week);
+
+            if (weekPicks.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No picks have been made for this week yet.</div>';
+                return;
+            }
+
+            // Group picks by game
+            const picksByGame = {};
+            weekPicks.forEach(userPick => {
+                const picks = userPick.picks.split(',').map(p => p.trim());
+                picks.forEach(pick => {
+                    const [gameId, team] = pick.split('-');
+                    if (!picksByGame[gameId]) {
+                        picksByGame[gameId] = { away: [], home: [] };
+                    }
+                    picksByGame[gameId][team].push(userPick.username);
+                });
+            });
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 1.5rem;">';
+
+            games.forEach(game => {
+                const gameStarted = hasGameStarted(game.time);
+                const gamePicks = picksByGame[game.id] || { away: [], home: [] };
+
+                // Only show picks if game has started
+                if (!gameStarted && (gamePicks.away.length > 0 || gamePicks.home.length > 0)) {
+                    // Show that picks exist but don't reveal them
+                    html += `
+                        <div class="game-card">
+                            <div class="game-time">${game.time || 'TBD'}</div>
+                            <div style="text-align: center; padding: 1rem; color: var(--text-muted); font-style: italic;">
+                                ${gamePicks.away.length + gamePicks.home.length} pick(s) made - visible after game starts
+                            </div>
+                            <div style="margin-top: 0.5rem; padding: 0.75rem; background: var(--surface-light); border-radius: 8px;">
+                                <div style="font-weight: 600; margin-bottom: 0.5rem;">${game.away} @ ${game.home}</div>
+                                <div style="font-size: 0.9rem; color: var(--text-muted);">Spread: ${game.spread}</div>
+                            </div>
+                        </div>
+                    `;
+                } else if (gameStarted && (gamePicks.away.length > 0 || gamePicks.home.length > 0)) {
+                    // Show actual picks
+                    const awaySpreadDisplay = game.awaySpread > 0 ? `+${game.awaySpread}` : game.awaySpread;
+                    const homeSpreadDisplay = game.awaySpread < 0 ? `+${Math.abs(game.awaySpread)}` : -game.awaySpread;
+
+                    html += `
+                        <div class="game-card">
+                            <div style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; margin-bottom: 0.5rem;">Game Started</div>
+                            <div class="game-time">${game.time || 'TBD'}</div>
+                            <div style="background: var(--surface-light); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <span style="font-weight: 600;">${game.away}</span>
+                                    <span style="color: var(--primary); font-weight: 700;">${awaySpreadDisplay}</span>
+                                </div>
+                                ${gamePicks.away.length > 0 ? `<div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Picked by: ${gamePicks.away.join(', ')}</div>` : '<div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">No picks</div>'}
+                            </div>
+                            <div style="background: var(--surface-light); padding: 1rem; border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <span style="font-weight: 600;">${game.home}</span>
+                                    <span style="color: var(--primary); font-weight: 700;">${homeSpreadDisplay}</span>
+                                </div>
+                                ${gamePicks.home.length > 0 ? `<div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Picked by: ${gamePicks.home.join(', ')}</div>` : '<div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">No picks</div>'}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            html += '</div>';
+            container.innerHTML = html || '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No visible picks for this week yet.</div>';
+        }
+
         // Show message
         function showMessage(type, text) {
             const container = document.getElementById('message-container');
             container.innerHTML = `<div class="message ${type}">${text}</div>`;
-            
+
             if (type !== 'info') {
                 setTimeout(() => {
                     container.innerHTML = '';
