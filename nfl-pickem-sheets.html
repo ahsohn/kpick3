@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFL Pick'em Pool 2026-2027</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #D50A0A;
+            --primary-dark: #9a0707;
+            --secondary: #013369;
+            --background: #0a0e14;
+            --surface: #151a23;
+            --surface-light: #1d2433;
+            --text: #ffffff;
+            --text-muted: #8b96a8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --border: #2a3444;
+        }
+
+        body {
+            font-family: 'Barlow', sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.01) 2px, rgba(255,255,255,0.01) 4px),
+                radial-gradient(circle at 20% 50%, rgba(213, 10, 10, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(1, 51, 105, 0.05) 0%, transparent 50%);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(213, 10, 10, 0.3);
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.03) 10px,
+                rgba(255,255,255,0.03) 20px
+            );
+            pointer-events: none;
+        }
+
+        h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 3.5rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .season {
+            font-size: 1.1rem;
+            font-weight: 500;
+            letter-spacing: 2px;
+            opacity: 0.95;
+            position: relative;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tab {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.3rem;
+            letter-spacing: 1px;
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            text-transform: uppercase;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            color: var(--primary);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-section {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .user-section label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .user-section input {
+            width: 100%;
+            max-width: 400px;
+            padding: 0.75rem 1rem;
+            background: var(--surface-light);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .user-section input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(213, 10, 10, 0.1);
+        }
+
+        .week-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            align-items: center;
+            background: var(--surface);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .week-selector label {
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .week-selector select {
+            padding: 0.6rem 1rem;
+            background: var(--surface-light);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .week-selector select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .week-selector button {
+            padding: 0.6rem 1.5rem;
+            background: var(--secondary);
+            border: none;
+            border-radius: 8px;
+            color: var(--text);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.9rem;
+        }
+
+        .week-selector button:hover {
+            background: #014a8f;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(1, 51, 105, 0.3);
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .game-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .game-card:hover::before {
+            opacity: 1;
+        }
+
+        .game-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(213, 10, 10, 0.15);
+        }
+
+        .game-time {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .team-option {
+            background: var(--surface-light);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .team-option:hover {
+            background: rgba(213, 10, 10, 0.1);
+            border-color: rgba(213, 10, 10, 0.3);
+        }
+
+        .team-option.selected {
+            background: rgba(213, 10, 10, 0.2);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(213, 10, 10, 0.1);
+        }
+
+        .team-option.locked {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .team-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .spread {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .submit-picks {
+            display: block;
+            width: 100%;
+            max-width: 400px;
+            margin: 2rem auto;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            box-shadow: 0 4px 16px rgba(213, 10, 10, 0.3);
+        }
+
+        .submit-picks:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(213, 10, 10, 0.4);
+        }
+
+        .submit-picks:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .standings-table {
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .standings-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .standings-table th {
+            background: var(--surface-light);
+            padding: 1rem;
+            text-align: left;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .standings-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .standings-table tr:hover {
+            background: var(--surface-light);
+        }
+
+        .standings-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .rank {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+
+        .points {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .message {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .message.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--success);
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .message.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3b82f6;
+        }
+
+        .picks-count {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .admin-section {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .admin-section h3 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .admin-section p {
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .admin-section code {
+            background: var(--surface-light);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+            color: var(--primary);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab {
+                font-size: 1.1rem;
+                padding: 0.6rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>NFL Pick'em Pool</h1>
+        <div class="season">2026-2027 Season</div>
+    </div>
+
+    <div class="container">
+        <div class="user-section">
+            <label for="username">Your Name:</label>
+            <input type="text" id="username" placeholder="Enter your name to participate">
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="make-picks">Make Picks</button>
+            <button class="tab" data-tab="standings">Standings</button>
+            <button class="tab" data-tab="admin">Admin</button>
+        </div>
+
+        <div id="make-picks" class="tab-content active">
+            <div class="week-selector">
+                <label for="week-select">Week:</label>
+                <select id="week-select">
+                    <option value="1">Week 1</option>
+                </select>
+                <button onclick="loadGames()">Load Games</button>
+                <button onclick="loadData()" style="background: var(--success);">Refresh Data</button>
+            </div>
+
+            <div id="message-container"></div>
+
+            <div class="picks-count">
+                <strong>Selected: <span id="picks-count">0</span> / 3 games</strong>
+            </div>
+
+            <div class="games-grid" id="games-grid">
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    Click "Load Games" to see available games for the week
+                </div>
+            </div>
+
+            <button class="submit-picks" id="submit-picks" disabled>Submit Picks</button>
+        </div>
+
+        <div id="standings" class="tab-content">
+            <div class="standings-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Total Points</th>
+                            <th>Wins</th>
+                            <th>Losses</th>
+                            <th>Parlays Hit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="standings-body">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                <div class="spinner"></div>
+                                Loading standings...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="admin" class="tab-content">
+            <div class="admin-section">
+                <h3>📋 Setup Instructions</h3>
+                <p><strong>Step 1:</strong> Create a Google Sheet with these exact sheet names:</p>
+                <ul style="margin-left: 2rem; margin-bottom: 1rem; color: var(--text-muted);">
+                    <li><code>Games</code> - For weekly NFL games and lines</li>
+                    <li><code>Picks</code> - For user picks</li>
+                    <li><code>Standings</code> - For calculated standings</li>
+                </ul>
+                
+                <p><strong>Step 2:</strong> Share your Google Sheet:</p>
+                <ul style="margin-left: 2rem; margin-bottom: 1rem; color: var(--text-muted);">
+                    <li>Click "Share" button</li>
+                    <li>Change to "Anyone with the link" can <strong>VIEW</strong></li>
+                    <li>Copy the Sheet ID from the URL</li>
+                </ul>
+                
+                <p><strong>Step 3:</strong> Paste your Google Sheet ID below:</p>
+                <input type="text" id="sheet-id" placeholder="Paste Google Sheet ID here" 
+                    style="width: 100%; max-width: 600px; padding: 0.75rem; background: var(--surface-light); border: 2px solid var(--border); border-radius: 8px; color: var(--text); margin-bottom: 1rem;">
+                <button class="submit-picks" style="max-width: 300px; margin: 0;" onclick="saveSheetId()">
+                    Save Sheet ID
+                </button>
+                
+                <p style="margin-top: 1rem; font-size: 0.9rem;">
+                    <strong>Current Sheet ID:</strong> <span id="current-sheet-id" style="color: var(--primary);">Not set</span>
+                </p>
+            </div>
+
+            <div class="admin-section">
+                <h3>🏈 Add Games for a Week</h3>
+                <p>Manually add games to your Google Sheet "Games" tab with these columns:</p>
+                <p><code>Week | GameID | Away | Home | Spread | AwaySpread | GameTime | Winner</code></p>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Example: <code>1 | 1-1 | Chiefs | Bills | KC -3 | -3 | Sunday 1:00 PM | </code></p>
+                <p style="margin-top: 1rem;">After adding games, click "Refresh Data" on the Make Picks tab.</p>
+            </div>
+
+            <div class="admin-section">
+                <h3>🎯 How Scoring Works</h3>
+                <p>Once games are completed:</p>
+                <ol style="margin-left: 2rem; margin-bottom: 1rem; color: var(--text-muted);">
+                    <li>Update the <code>Winner</code> column in Games sheet (use "away" or "home")</li>
+                    <li>Script will automatically calculate wins/losses</li>
+                    <li>1 point per correct pick</li>
+                    <li>+1 bonus point if all 3 picks are correct (4 total)</li>
+                </ol>
+                <p style="font-size: 0.9rem; background: rgba(213, 10, 10, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(213, 10, 10, 0.3);">
+                    <strong>Note:</strong> You'll need to set up Google Apps Script to enable automatic scoring and write functionality. See the README for instructions.
+                </p>
+            </div>
+
+            <div class="admin-section">
+                <h3>📊 Google Sheets Template</h3>
+                <p>Download this template to get started quickly:</p>
+                <button class="submit-picks" style="max-width: 300px; margin: 1rem 0 0 0;" onclick="window.open('https://docs.google.com/spreadsheets/d/1BxiIb_VjeGU3rnv_ytgHvAyI2Xl5JKM2kTlIqc8bQ9k/copy', '_blank')">
+                    Copy Template Sheet
+                </button>
+                <p style="font-size: 0.9rem; margin-top: 1rem; color: var(--text-muted);">
+                    This will create a copy of the template in your Google Drive with the correct structure.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const SHEET_ID_KEY = 'nfl-pickem-sheet-id';
+        let SHEET_ID = localStorage.getItem(SHEET_ID_KEY) || '';
+        
+        // Data structures
+        let gameData = {};
+        let picksData = [];
+        let standingsData = [];
+        let selectedGames = new Set();
+        let currentWeek = 1;
+
+        // Initialize
+        window.addEventListener('load', () => {
+            const savedSheetId = localStorage.getItem(SHEET_ID_KEY);
+            if (savedSheetId) {
+                SHEET_ID = savedSheetId;
+                document.getElementById('current-sheet-id').textContent = SHEET_ID;
+                loadData();
+            }
+        });
+
+        // Save Sheet ID
+        function saveSheetId() {
+            const sheetId = document.getElementById('sheet-id').value.trim();
+            if (!sheetId) {
+                showMessage('error', 'Please enter a Sheet ID');
+                return;
+            }
+            
+            SHEET_ID = sheetId;
+            localStorage.setItem(SHEET_ID_KEY, sheetId);
+            document.getElementById('current-sheet-id').textContent = sheetId;
+            showMessage('success', 'Sheet ID saved! Click "Refresh Data" to load your data.');
+        }
+
+        // Load data from Google Sheets
+        async function loadData() {
+            if (!SHEET_ID) {
+                showMessage('error', 'Please set up your Google Sheet ID in the Admin tab first!');
+                return;
+            }
+
+            try {
+                showMessage('info', 'Loading data from Google Sheets...');
+                
+                // Load Games
+                const gamesUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Games`;
+                const gamesResponse = await fetch(gamesUrl);
+                const gamesText = await gamesResponse.text();
+                const gamesJson = JSON.parse(gamesText.substring(47).slice(0, -2));
+                
+                // Parse games data
+                gameData = {};
+                gamesJson.table.rows.forEach(row => {
+                    const week = row.c[0]?.v;
+                    const gameId = row.c[1]?.v;
+                    const away = row.c[2]?.v;
+                    const home = row.c[3]?.v;
+                    const spread = row.c[4]?.v;
+                    const awaySpread = row.c[5]?.v;
+                    const gameTime = row.c[6]?.v;
+                    const winner = row.c[7]?.v;
+                    
+                    if (week && gameId) {
+                        if (!gameData[week]) gameData[week] = [];
+                        gameData[week].push({
+                            id: gameId,
+                            away,
+                            home,
+                            spread,
+                            awaySpread,
+                            time: gameTime,
+                            winner
+                        });
+                    }
+                });
+
+                // Load Picks
+                const picksUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Picks`;
+                const picksResponse = await fetch(picksUrl);
+                const picksText = await picksResponse.text();
+                const picksJson = JSON.parse(picksText.substring(47).slice(0, -2));
+                
+                picksData = [];
+                picksJson.table.rows.forEach(row => {
+                    const username = row.c[0]?.v;
+                    const week = row.c[1]?.v;
+                    const picks = row.c[2]?.v;
+                    
+                    if (username && week) {
+                        picksData.push({ username, week, picks });
+                    }
+                });
+
+                // Load Standings
+                const standingsUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Standings`;
+                const standingsResponse = await fetch(standingsUrl);
+                const standingsText = await standingsResponse.text();
+                const standingsJson = JSON.parse(standingsText.substring(47).slice(0, -2));
+                
+                standingsData = [];
+                standingsJson.table.rows.forEach(row => {
+                    const username = row.c[0]?.v;
+                    const totalPoints = row.c[1]?.v || 0;
+                    const wins = row.c[2]?.v || 0;
+                    const losses = row.c[3]?.v || 0;
+                    const parlays = row.c[4]?.v || 0;
+                    
+                    if (username) {
+                        standingsData.push({ username, totalPoints, wins, losses, parlays });
+                    }
+                });
+
+                populateWeekSelectors();
+                updateStandings();
+                showMessage('success', 'Data loaded successfully from Google Sheets!');
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showMessage('error', 'Error loading data. Check your Sheet ID and make sure the sheet is shared publicly (view only).');
+            }
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Populate week selectors
+        function populateWeekSelectors() {
+            const weeks = Object.keys(gameData).sort((a, b) => a - b);
+            const weekSelect = document.getElementById('week-select');
+            
+            if (weeks.length > 0) {
+                weekSelect.innerHTML = weeks.map(w => `<option value="${w}">Week ${w}</option>`).join('');
+            }
+        }
+
+        // Load games for selected week
+        function loadGames() {
+            const week = document.getElementById('week-select').value;
+            const username = document.getElementById('username').value.trim();
+            currentWeek = week;
+            selectedGames.clear();
+            updatePicksCount();
+
+            const games = gameData[week];
+            const gamesGrid = document.getElementById('games-grid');
+
+            if (!games || games.length === 0) {
+                gamesGrid.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No games available for this week. Use the Admin tab to add games.</div>';
+                return;
+            }
+
+            // Check if user already has picks for this week
+            const existingPicks = picksData.find(p => p.username === username && p.week == week);
+            const isLocked = existingPicks !== undefined;
+
+            if (isLocked) {
+                showMessage('info', `You've already submitted picks for Week ${week}. Your picks: ${existingPicks.picks}`);
+            }
+
+            gamesGrid.innerHTML = games.map(game => `
+                <div class="game-card">
+                    <div class="game-time">${game.time || 'TBD'}</div>
+                    <div class="team-option ${isLocked ? 'locked' : ''}" data-game-id="${game.id}" data-team="away">
+                        <span class="team-name">${game.away}</span>
+                        <span class="spread">${game.spread && game.spread.includes(game.away.split(' ').pop()) ? game.spread.split(' ')[1] : (game.awaySpread > 0 ? '+' + game.awaySpread : game.awaySpread)}</span>
+                    </div>
+                    <div class="team-option ${isLocked ? 'locked' : ''}" data-game-id="${game.id}" data-team="home">
+                        <span class="team-name">${game.home}</span>
+                        <span class="spread">${game.spread && game.spread.includes(game.home.split(' ').pop()) ? game.spread.split(' ')[1] : (game.awaySpread < 0 ? '+' + Math.abs(game.awaySpread) : -game.awaySpread)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click handlers only if not locked
+            if (!isLocked) {
+                document.querySelectorAll('.team-option:not(.locked)').forEach(option => {
+                    option.addEventListener('click', () => selectTeam(option));
+                });
+            }
+        }
+
+        // Select a team
+        function selectTeam(option) {
+            const gameId = option.dataset.gameId;
+            const team = option.dataset.team;
+
+            // Deselect other team in same game
+            document.querySelectorAll(`[data-game-id="${gameId}"]`).forEach(opt => {
+                opt.classList.remove('selected');
+            });
+
+            // Check if game was already selected
+            const wasSelected = selectedGames.has(gameId);
+            
+            // Remove previous selection for this game
+            for (let selected of selectedGames) {
+                if (selected.startsWith(gameId)) {
+                    selectedGames.delete(selected);
+                }
+            }
+
+            // Toggle selection
+            if (!wasSelected || !option.classList.contains('selected')) {
+                option.classList.add('selected');
+                selectedGames.add(`${gameId}-${team}`);
+            }
+
+            updatePicksCount();
+        }
+
+        // Update picks count
+        function updatePicksCount() {
+            const count = selectedGames.size;
+            document.getElementById('picks-count').textContent = count;
+            document.getElementById('submit-picks').disabled = count !== 3;
+        }
+
+        // Submit picks
+        document.getElementById('submit-picks').addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim();
+            
+            if (!username) {
+                showMessage('error', 'Please enter your name first!');
+                return;
+            }
+
+            if (selectedGames.size !== 3) {
+                showMessage('error', 'You must select exactly 3 games!');
+                return;
+            }
+
+            if (!SHEET_ID) {
+                showMessage('error', 'Google Sheet not configured. See Admin tab.');
+                return;
+            }
+
+            // Check if picks already exist
+            const existingPicks = picksData.find(p => p.username === username && p.week == currentWeek);
+            if (existingPicks) {
+                showMessage('error', `You've already submitted picks for Week ${currentWeek}!`);
+                return;
+            }
+
+            const picksString = Array.from(selectedGames).join(',');
+            
+            showMessage('info', 'Submitting picks...');
+            
+            // Note: This requires Google Apps Script to write to the sheet
+            // For now, we'll show instructions
+            showMessage('success', `Picks ready: ${picksString}<br><br>To submit, please add this row to your "Picks" sheet:<br><code>${username} | ${currentWeek} | ${picksString}</code><br><br>Then click "Refresh Data" to see your picks.`);
+            
+            selectedGames.clear();
+            updatePicksCount();
+        });
+
+        // Update standings
+        function updateStandings() {
+            const tbody = document.getElementById('standings-body');
+            
+            if (standingsData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No standings data yet. Make your picks to get started!</td></tr>';
+                return;
+            }
+
+            const sortedStandings = [...standingsData].sort((a, b) => b.totalPoints - a.totalPoints);
+
+            tbody.innerHTML = sortedStandings.map((data, index) => `
+                <tr>
+                    <td><span class="rank rank-${index + 1}">${index + 1}</span></td>
+                    <td><strong>${data.username}</strong></td>
+                    <td><span class="points">${data.totalPoints}</span></td>
+                    <td>${data.wins}</td>
+                    <td>${data.losses}</td>
+                    <td>${data.parlays}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Show message
+        function showMessage(type, text) {
+            const container = document.getElementById('message-container');
+            container.innerHTML = `<div class="message ${type}">${text}</div>`;
+            
+            if (type !== 'info') {
+                setTimeout(() => {
+                    container.innerHTML = '';
+                }, 8000);
+            }
+        }
+    </script>
+</body>
+</html>
