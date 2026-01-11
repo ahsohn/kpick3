@@ -709,14 +709,23 @@
                     <label for="test-num-games" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Number of Test Games:</label>
                     <input type="number" id="test-num-games" value="5" min="1" max="16" style="padding: 0.5rem; border: 2px solid var(--border); border-radius: 4px; background: var(--surface-light); color: var(--text); margin-bottom: 1rem;">
 
-                    <button onclick="generateTestData()" style="padding: 0.75rem 1.5rem; background: var(--warning); border: none; border-radius: 8px; color: var(--background); font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;">Generate Test Games</button>
-                    <button onclick="clearTestData()" style="padding: 0.75rem 1.5rem; background: #ef4444; border: none; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; margin-left: 0.5rem;">Clear Test Data</button>
+                    <button onclick="generateTestData()" style="padding: 0.75rem 1.5rem; background: var(--warning); border: none; border-radius: 8px; color: var(--background); font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;">Generate & Preview</button>
+                    <button onclick="sendTestDataToSheet()" style="padding: 0.75rem 1.5rem; background: var(--success); border: none; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; margin-left: 0.5rem;">Send to Google Sheet</button>
+                    <button onclick="clearTestData()" style="padding: 0.75rem 1.5rem; background: #ef4444; border: none; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; margin-left: 0.5rem;">Clear</button>
                 </div>
 
                 <div id="test-output" style="background: var(--surface-light); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></div>
 
                 <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted);">
-                    <strong>Note:</strong> Test games will have times starting 1 hour from now, spaced 30 minutes apart. This lets you test the deadline enforcement feature. Copy the generated data and paste it into your Google Sheet's "Games" tab (below any real data).
+                    <strong>How to use:</strong>
+                </p>
+                <ol style="margin-left: 2rem; margin-top: 0.5rem; color: var(--text-muted); line-height: 1.6;">
+                    <li>Click <strong>"Generate & Preview"</strong> to create test games and see them below</li>
+                    <li>Click <strong>"Send to Google Sheet"</strong> to automatically add them to your Games sheet</li>
+                    <li>Or manually copy the data and paste into your Google Sheet</li>
+                </ol>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">
+                    Test games start 1 hour from now, spaced 30 minutes apart. Perfect for testing deadline enforcement!
                 </p>
             </div>
 
@@ -1452,6 +1461,9 @@
             }
         }
 
+        // Store generated test games for sending to sheet
+        let generatedTestGames = [];
+
         // Generate test data for off-season testing
         function generateTestData() {
             const week = parseInt(document.getElementById('test-week').value);
@@ -1469,6 +1481,7 @@
             ];
 
             let output = 'Week\tGameID\tAway\tHome\tSpread\tAwaySpread\tGameTime\tWinner\n';
+            generatedTestGames = []; // Clear previous games
             const now = new Date();
 
             for (let i = 0; i < numGames; i++) {
@@ -1501,11 +1514,63 @@
 
                 const gameId = `${week}-${i + 1}`;
 
+                // Store for sending to sheet
+                generatedTestGames.push({
+                    week,
+                    gameId,
+                    away: awayTeam,
+                    home: homeTeam,
+                    spread,
+                    awaySpread: parseFloat(awaySpread),
+                    gameTime: gameTimeStr,
+                    winner: ''
+                });
+
                 output += `${week}\t${gameId}\t${awayTeam}\t${homeTeam}\t${spread}\t${awaySpread}\t${gameTimeStr}\t\n`;
             }
 
             document.getElementById('test-output').textContent = output;
-            showMessage('success', `Generated ${numGames} test games for Week ${week}! Copy the data above and paste into your Google Sheet.`);
+            showMessage('success', `Generated ${numGames} test games for Week ${week}! Click "Send to Google Sheet" to add them automatically.`);
+        }
+
+        // Send test data to Google Sheet
+        async function sendTestDataToSheet() {
+            if (generatedTestGames.length === 0) {
+                showMessage('error', 'Please generate test games first!');
+                return;
+            }
+
+            if (!SCRIPT_URL) {
+                showMessage('error', 'Apps Script URL not configured. See Admin tab for setup instructions.');
+                return;
+            }
+
+            showMessage('info', `Sending ${generatedTestGames.length} test games to Google Sheet...`);
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'addTestGames',
+                        games: generatedTestGames
+                    })
+                });
+
+                showMessage('success', `${generatedTestGames.length} test games sent to Google Sheet! Refresh the page to see them.`);
+
+                // Reload data after a short delay
+                setTimeout(() => {
+                    loadData();
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error sending test data:', error);
+                showMessage('error', 'Error sending test data. Please try copying and pasting manually instead.');
+            }
         }
 
         // Clear test data display

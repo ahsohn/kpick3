@@ -245,10 +245,18 @@ function calculateScores() {
 /**
  * Handles POST requests from the website to submit picks
  * Now supports incremental pick submissions (1-3 picks at a time)
+ * Also supports adding test games for off-season testing
  */
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
+
+    // Check if this is a test games request
+    if (data.action === 'addTestGames') {
+      return addTestGamesToSheet(data.games);
+    }
+
+    // Otherwise, handle regular picks submission
     const username = data.username;
     const week = data.week;
     const picks = data.picks;
@@ -326,6 +334,54 @@ function doPost(e) {
  */
 function doGet(e) {
   return ContentService.createTextOutput('NFL Pick\'em API is running');
+}
+
+/**
+ * Adds test games to the Games sheet for off-season testing
+ */
+function addTestGamesToSheet(games) {
+  try {
+    if (!games || games.length === 0) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        message: 'No games provided'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let gamesSheet = ss.getSheetByName('Games');
+
+    if (!gamesSheet) {
+      gamesSheet = ss.insertSheet('Games');
+      gamesSheet.appendRow(['Week', 'GameID', 'Away', 'Home', 'Spread', 'AwaySpread', 'GameTime', 'Winner']);
+      gamesSheet.getRange('A1:H1').setFontWeight('bold').setBackground('#d50a0a').setFontColor('#ffffff');
+    }
+
+    // Add all test games
+    games.forEach(game => {
+      gamesSheet.appendRow([
+        game.week,
+        game.gameId,
+        game.away,
+        game.home,
+        game.spread,
+        game.awaySpread,
+        game.gameTime,
+        game.winner || ''
+      ]);
+    });
+
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      message: `Successfully added ${games.length} test games`
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: 'Error adding test games: ' + error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 // ========================================
