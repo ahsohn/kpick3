@@ -359,6 +359,19 @@ function addTestGamesToSheet(games) {
 
     // Add all test games
     games.forEach(game => {
+      // Parse ISO date string to JavaScript Date object for Google Sheets
+      let gameTimeValue = game.gameTime;
+      try {
+        // If it's an ISO string, convert to Date
+        const parsedDate = new Date(game.gameTime);
+        if (!isNaN(parsedDate.getTime())) {
+          gameTimeValue = parsedDate;
+        }
+      } catch (e) {
+        // If parsing fails, use the original value
+        gameTimeValue = game.gameTime;
+      }
+
       gamesSheet.appendRow([
         game.week,
         game.gameId,
@@ -366,7 +379,7 @@ function addTestGamesToSheet(games) {
         game.home,
         game.spread,
         game.awaySpread,
-        game.gameTime,
+        gameTimeValue,
         game.winner || ''
       ]);
     });

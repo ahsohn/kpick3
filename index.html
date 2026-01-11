@@ -1522,7 +1522,7 @@
                     home: homeTeam,
                     spread,
                     awaySpread: parseFloat(awaySpread),
-                    gameTime: gameTimeStr,
+                    gameTime: gameTime.toISOString(), // Store as ISO string for proper parsing
                     winner: ''
                 });
 
