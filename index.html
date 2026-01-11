@@ -505,6 +505,30 @@
                 padding: 0.6rem 1rem;
             }
         }
+
+        .copy-code {
+            background: var(--surface-light);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .copy-code button {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            background: var(--primary);
+            border: none;
+            border-radius: 4px;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -605,36 +629,46 @@
             </div>
 
             <div class="admin-section">
-                <h3>🏈 Add Games for a Week</h3>
-                <p>Manually add games to your Google Sheet "Games" tab with these columns:</p>
-                <p><code>Week | GameID | Away | Home | Spread | AwaySpread | GameTime | Winner</code></p>
-                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Example: <code>1 | 1-1 | Chiefs | Bills | KC -3 | -3 | Sunday 1:00 PM | </code></p>
-                <p style="margin-top: 1rem;">After adding games, click "Refresh Data" on the Make Picks tab.</p>
-            </div>
-
-            <div class="admin-section">
-                <h3>🎯 How Scoring Works</h3>
-                <p>Once games are completed:</p>
-                <ol style="margin-left: 2rem; margin-bottom: 1rem; color: var(--text-muted);">
-                    <li>Update the <code>Winner</code> column in Games sheet (use "away" or "home")</li>
-                    <li>Script will automatically calculate wins/losses</li>
-                    <li>1 point per correct pick</li>
-                    <li>+1 bonus point if all 3 picks are correct (4 total)</li>
-                </ol>
-                <p style="font-size: 0.9rem; background: rgba(213, 10, 10, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(213, 10, 10, 0.3);">
-                    <strong>Note:</strong> You'll need to set up Google Apps Script to enable automatic scoring and write functionality. See the README for instructions.
-                </p>
-            </div>
-
-            <div class="admin-section">
-                <h3>📊 Google Sheets Template</h3>
-                <p>Download this template to get started quickly:</p>
-                <button class="submit-picks" style="max-width: 300px; margin: 1rem 0 0 0;" onclick="window.open('https://docs.google.com/spreadsheets/d/1BxiIb_VjeGU3rnv_ytgHvAyI2Xl5JKM2kTlIqc8bQ9k/copy', '_blank')">
-                    Copy Template Sheet
+                <h3>🏈 Auto-Scrape NFL Lines from ESPN</h3>
+                <p>Select a week and click to automatically fetch NFL games and lines from ESPN's API:</p>
+                <div style="display: flex; gap: 1rem; align-items: center; margin: 1rem 0;">
+                    <label for="scrape-week">Week:</label>
+                    <select id="scrape-week" style="padding: 0.6rem 1rem; background: var(--surface-light); border: 2px solid var(--border); border-radius: 8px; color: var(--text);">
+                        <option value="1">Week 1</option>
+                        <option value="2">Week 2</option>
+                        <option value="3">Week 3</option>
+                        <option value="4">Week 4</option>
+                        <option value="5">Week 5</option>
+                        <option value="6">Week 6</option>
+                        <option value="7">Week 7</option>
+                        <option value="8">Week 8</option>
+                        <option value="9">Week 9</option>
+                        <option value="10">Week 10</option>
+                        <option value="11">Week 11</option>
+                        <option value="12">Week 12</option>
+                        <option value="13">Week 13</option>
+                        <option value="14">Week 14</option>
+                        <option value="15">Week 15</option>
+                        <option value="16">Week 16</option>
+                        <option value="17">Week 17</option>
+                        <option value="18">Week 18</option>
+                    </select>
+                </div>
+                <button class="submit-picks" style="max-width: 300px; margin: 0;" onclick="scrapeESPNLines()">
+                    Fetch Lines from ESPN
                 </button>
-                <p style="font-size: 0.9rem; margin-top: 1rem; color: var(--text-muted);">
-                    This will create a copy of the template in your Google Drive with the correct structure.
+                <p style="margin-top: 1rem; font-size: 0.9rem; background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <strong>✅ Auto-Scraping Enabled!</strong> This will fetch games and spreads from ESPN. You'll then copy the data to your Google Sheet.
                 </p>
+            </div>
+
+            <div class="admin-section">
+                <h3>📊 Manual Pick Entry</h3>
+                <p>When users submit picks, copy this format to your Google Sheet "Picks" tab:</p>
+                <div id="pick-format" class="copy-code" style="display: none;">
+                    <button onclick="copyPickFormat()">Copy</button>
+                    <div id="pick-text"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -650,6 +684,7 @@
         let standingsData = [];
         let selectedGames = new Set();
         let currentWeek = 1;
+        let scrapedGamesCache = null;
 
         // Initialize
         window.addEventListener('load', () => {
@@ -673,6 +708,97 @@
             localStorage.setItem(SHEET_ID_KEY, sheetId);
             document.getElementById('current-sheet-id').textContent = sheetId;
             showMessage('success', 'Sheet ID saved! Click "Refresh Data" to load your data.');
+        }
+
+        // Scrape NFL lines from ESPN
+        async function scrapeESPNLines() {
+            const week = document.getElementById('scrape-week').value;
+            showMessage('info', `Fetching Week ${week} games from ESPN...`);
+
+            try {
+                // ESPN API endpoint for NFL scoreboard
+                const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.events || data.events.length === 0) {
+                    showMessage('error', `No games found for Week ${week}. Make sure the season has started!`);
+                    return;
+                }
+
+                const games = [];
+                data.events.forEach((event, index) => {
+                    const competition = event.competitions[0];
+                    const homeTeam = competition.competitors.find(c => c.homeAway === 'home');
+                    const awayTeam = competition.competitors.find(c => c.homeAway === 'away');
+                    
+                    // Get spread if available
+                    let spread = 'EVEN';
+                    let awaySpread = 0;
+                    
+                    if (competition.odds && competition.odds.length > 0) {
+                        const odds = competition.odds[0];
+                        if (odds.details) {
+                            spread = odds.details;
+                            // Parse spread (e.g., "KC -3" or "BUF +3")
+                            const spreadMatch = spread.match(/([A-Z]+)\s*([-+]?\d+\.?\d*)/);
+                            if (spreadMatch) {
+                                const teamAbbr = spreadMatch[1];
+                                const spreadValue = parseFloat(spreadMatch[2]);
+                                // Determine if it's home or away team's spread
+                                if (homeTeam.team.abbreviation === teamAbbr) {
+                                    awaySpread = -spreadValue;
+                                } else {
+                                    awaySpread = spreadValue;
+                                }
+                            }
+                        }
+                    }
+
+                    // Format game time
+                    const gameDate = new Date(event.date);
+                    const gameTime = gameDate.toLocaleString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        timeZoneName: 'short'
+                    });
+
+                    games.push({
+                        week: week,
+                        gameId: `${week}-${index + 1}`,
+                        away: awayTeam.team.displayName,
+                        home: homeTeam.team.displayName,
+                        spread: spread,
+                        awaySpread: awaySpread,
+                        gameTime: gameTime,
+                        winner: ''
+                    });
+                });
+
+                scrapedGamesCache = games;
+
+                // Display results
+                let output = `Found ${games.length} games for Week ${week}:\n\n`;
+                output += `Copy this to your Google Sheet "Games" tab:\n\n`;
+                output += `Week\tGameID\tAway\tHome\tSpread\tAwaySpread\tGameTime\tWinner\n`;
+                
+                games.forEach(game => {
+                    output += `${game.week}\t${game.gameId}\t${game.away}\t${game.home}\t${game.spread}\t${game.awaySpread}\t${game.gameTime}\t\n`;
+                });
+
+                // Show in alert (can be copied)
+                alert(output);
+                showMessage('success', `Successfully fetched ${games.length} games! Check the alert/console for data to copy.`);
+                console.log('Games data to copy to Google Sheets:');
+                console.table(games);
+
+            } catch (error) {
+                console.error('Error scraping ESPN:', error);
+                showMessage('error', 'Error fetching from ESPN. The season might not have started yet, or ESPN API might be temporarily unavailable.');
+            }
         }
 
         // Load data from Google Sheets
@@ -795,7 +921,7 @@
             const gamesGrid = document.getElementById('games-grid');
 
             if (!games || games.length === 0) {
-                gamesGrid.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No games available for this week. Use the Admin tab to add games.</div>';
+                gamesGrid.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No games available for this week. Use the Admin tab to scrape lines from ESPN.</div>';
                 return;
             }
 
@@ -807,19 +933,23 @@
                 showMessage('info', `You've already submitted picks for Week ${week}. Your picks: ${existingPicks.picks}`);
             }
 
-            gamesGrid.innerHTML = games.map(game => `
+            gamesGrid.innerHTML = games.map(game => {
+                const awaySpreadDisplay = game.awaySpread > 0 ? `+${game.awaySpread}` : game.awaySpread;
+                const homeSpreadDisplay = game.awaySpread < 0 ? `+${Math.abs(game.awaySpread)}` : -game.awaySpread;
+                
+                return `
                 <div class="game-card">
                     <div class="game-time">${game.time || 'TBD'}</div>
                     <div class="team-option ${isLocked ? 'locked' : ''}" data-game-id="${game.id}" data-team="away">
                         <span class="team-name">${game.away}</span>
-                        <span class="spread">${game.spread && game.spread.includes(game.away.split(' ').pop()) ? game.spread.split(' ')[1] : (game.awaySpread > 0 ? '+' + game.awaySpread : game.awaySpread)}</span>
+                        <span class="spread">${awaySpreadDisplay}</span>
                     </div>
                     <div class="team-option ${isLocked ? 'locked' : ''}" data-game-id="${game.id}" data-team="home">
                         <span class="team-name">${game.home}</span>
-                        <span class="spread">${game.spread && game.spread.includes(game.home.split(' ').pop()) ? game.spread.split(' ')[1] : (game.awaySpread < 0 ? '+' + Math.abs(game.awaySpread) : -game.awaySpread)}</span>
+                        <span class="spread">${homeSpreadDisplay}</span>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
 
             // Add click handlers only if not locked
             if (!isLocked) {
@@ -893,15 +1023,32 @@
 
             const picksString = Array.from(selectedGames).join(',');
             
-            showMessage('info', 'Submitting picks...');
+            // Format for Google Sheets
+            const pickFormat = `${username}\t${currentWeek}\t${picksString}`;
             
-            // Note: This requires Google Apps Script to write to the sheet
-            // For now, we'll show instructions
-            showMessage('success', `Picks ready: ${picksString}<br><br>To submit, please add this row to your "Picks" sheet:<br><code>${username} | ${currentWeek} | ${picksString}</code><br><br>Then click "Refresh Data" to see your picks.`);
+            // Show formatted output
+            const formatDiv = document.getElementById('pick-format');
+            const pickText = document.getElementById('pick-text');
+            pickText.textContent = pickFormat;
+            formatDiv.style.display = 'block';
+            
+            // Scroll to admin section
+            document.querySelector('[data-tab="admin"]').click();
+            formatDiv.scrollIntoView({ behavior: 'smooth' });
+            
+            showMessage('success', `Picks ready! Scroll down to Admin tab and copy the formatted text to your "Picks" sheet, then click "Refresh Data".`);
             
             selectedGames.clear();
             updatePicksCount();
         });
+
+        // Copy pick format
+        function copyPickFormat() {
+            const text = document.getElementById('pick-text').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard! Paste this into your Google Sheet "Picks" tab.');
+            });
+        }
 
         // Update standings
         function updateStandings() {
@@ -934,7 +1081,7 @@
             if (type !== 'info') {
                 setTimeout(() => {
                     container.innerHTML = '';
-                }, 8000);
+                }, 10000);
             }
         }
     </script>
