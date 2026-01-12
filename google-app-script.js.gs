@@ -243,17 +243,65 @@ function calculateScores() {
 // ========================================
 
 /**
+ * Helper function to create CORS-enabled JSON response
+ */
+function createCorsResponse(data) {
+  const output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
+}
+
+/**
  * Handles POST requests from the website to submit picks
  * Now supports incremental pick submissions (1-3 picks at a time)
  * Also supports adding test games for off-season testing
  */
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    // Log entire event object for debugging
+    Logger.log('doPost called');
+    Logger.log('Event object: ' + JSON.stringify(e));
+
+    // Check if we have postData
+    if (!e) {
+      Logger.log('ERROR: Event object is null/undefined');
+      return createCorsResponse({ success: false, message: 'No event data received' });
+    }
+
+    let data;
+
+    // Try to parse data from different sources
+    // 1. Check for FormData payload parameter
+    if (e.parameter && e.parameter.payload) {
+      Logger.log('Found payload in e.parameter');
+      data = JSON.parse(e.parameter.payload);
+    }
+    // 2. Check for postData.contents (JSON body)
+    else if (e.postData && e.postData.contents) {
+      Logger.log('Found data in e.postData.contents');
+      Logger.log('postData.contents: ' + e.postData.contents);
+      Logger.log('postData.type: ' + e.postData.type);
+      data = JSON.parse(e.postData.contents);
+    }
+    // 3. No data found
+    else {
+      Logger.log('ERROR: No data found. e.parameter: ' + JSON.stringify(e.parameter));
+      return createCorsResponse({ success: false, message: 'No POST data received' });
+    }
+
+    // Log incoming request for debugging
+    Logger.log('Parsed data: ' + JSON.stringify(data));
 
     // Check if this is a test games request
     if (data.action === 'addTestGames') {
+      Logger.log('Processing test games request');
       return addTestGamesToSheet(data.games);
+    }
+
+    // DEBUG: Bypass all validation to test if web requests reach here
+    if (data.action === 'debugPick') {
+      Logger.log('Processing debug pick request');
+      return addDebugPick(data);
     }
 
     // Otherwise, handle regular picks submission
@@ -261,11 +309,14 @@ function doPost(e) {
     const week = data.week;
     const picks = data.picks;
 
+    Logger.log('Processing picks submission for user: ' + username + ', week: ' + week + ', picks: ' + picks);
+
     if (!username || !week || !picks) {
-      return ContentService.createTextOutput(JSON.stringify({
+      Logger.log('ERROR: Missing required fields. username=' + username + ', week=' + week + ', picks=' + picks);
+      return createCorsResponse({
         success: false,
         message: 'Missing required fields'
-      })).setMimeType(ContentService.MimeType.JSON);
+      });
     }
 
     // Get Picks sheet
@@ -295,10 +346,11 @@ function doPost(e) {
           for (const existingPick of existingPicksArray) {
             const existingGameId = existingPick.trim().split('-')[0];
             if (newGameId === existingGameId) {
-              return ContentService.createTextOutput(JSON.stringify({
+              Logger.log('ERROR: Duplicate pick for game ' + newGameId);
+              return createCorsResponse({
                 success: false,
                 message: `You've already made a pick for game ${newGameId}`
-              })).setMimeType(ContentService.MimeType.JSON);
+              });
             }
           }
         }
@@ -307,25 +359,28 @@ function doPost(e) {
 
     // Check if total would exceed 3 picks
     if (totalPicksForWeek + newPicksArray.length > 3) {
-      return ContentService.createTextOutput(JSON.stringify({
+      Logger.log('ERROR: Too many picks - user has ' + totalPicksForWeek + ', trying to add ' + newPicksArray.length);
+      return createCorsResponse({
         success: false,
         message: `You can only make 3 picks per week. You already have ${totalPicksForWeek} pick(s).`
-      })).setMimeType(ContentService.MimeType.JSON);
+      });
     }
 
     // Add new picks (each submission is a separate row)
     picksSheet.appendRow([username, week, picks]);
+    Logger.log('Successfully added picks to sheet');
 
-    return ContentService.createTextOutput(JSON.stringify({
+    return createCorsResponse({
       success: true,
       message: 'Picks submitted successfully!'
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
 
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
+    Logger.log('ERROR in doPost: ' + error.toString());
+    return createCorsResponse({
       success: false,
       message: 'Error: ' + error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
   }
 }
 
@@ -337,15 +392,100 @@ function doGet(e) {
 }
 
 /**
+ * Test function - run this manually from the Apps Script editor to verify sheet writing works
+ */
+function testAddPick() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let picksSheet = ss.getSheetByName('Picks');
+
+  if (!picksSheet) {
+    picksSheet = ss.insertSheet('Picks');
+    picksSheet.appendRow(['Username', 'Week', 'Picks']);
+    picksSheet.getRange('A1:C1').setFontWeight('bold').setBackground('#d50a0a').setFontColor('#ffffff');
+  }
+
+  // Add a test pick
+  picksSheet.appendRow(['TestUser', 1, '1-1-away']);
+  Logger.log('Test pick added successfully!');
+}
+
+/**
+ * Test function that simulates the exact web request flow
+ * Run this to see if picks would be saved with fake data
+ */
+function testWebPickSubmission() {
+  // Simulate incoming data exactly like the website would send
+  const fakeData = {
+    username: 'WebTestUser',
+    week: 1,
+    picks: '1-1-away'
+  };
+
+  Logger.log('Testing with fake data: ' + JSON.stringify(fakeData));
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let picksSheet = ss.getSheetByName('Picks');
+
+  Logger.log('picksSheet found: ' + (picksSheet !== null));
+
+  if (!picksSheet) {
+    Logger.log('Creating Picks sheet...');
+    picksSheet = ss.insertSheet('Picks');
+    picksSheet.appendRow(['Username', 'Week', 'Picks']);
+  }
+
+  // Try to append
+  try {
+    picksSheet.appendRow([fakeData.username, fakeData.week, fakeData.picks]);
+    Logger.log('SUCCESS: Row appended!');
+  } catch (error) {
+    Logger.log('ERROR appending row: ' + error.toString());
+  }
+}
+
+/**
+ * DEBUG: Add this action handler to doPost to test if picks path is reached
+ * Website can call with action: 'debugPick' to bypass all validation
+ */
+function addDebugPick(data) {
+  try {
+    Logger.log('addDebugPick called with: ' + JSON.stringify(data));
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let picksSheet = ss.getSheetByName('Picks');
+
+    if (!picksSheet) {
+      picksSheet = ss.insertSheet('Picks');
+      picksSheet.appendRow(['Username', 'Week', 'Picks']);
+      picksSheet.getRange('A1:C1').setFontWeight('bold').setBackground('#d50a0a').setFontColor('#ffffff');
+    }
+
+    // Write unconditionally - no validation
+    const timestamp = new Date().toISOString();
+    picksSheet.appendRow([data.username || 'DEBUG_' + timestamp, data.week || 99, data.picks || 'debug-pick']);
+
+    Logger.log('DEBUG pick added successfully!');
+    return createCorsResponse({ success: true, message: 'Debug pick added!' });
+
+  } catch (error) {
+    Logger.log('ERROR in addDebugPick: ' + error.toString());
+    return createCorsResponse({ success: false, message: 'Error: ' + error.toString() });
+  }
+}
+
+/**
  * Adds test games to the Games sheet for off-season testing
  */
 function addTestGamesToSheet(games) {
   try {
+    Logger.log('addTestGamesToSheet called with ' + (games ? games.length : 0) + ' games');
+
     if (!games || games.length === 0) {
-      return ContentService.createTextOutput(JSON.stringify({
+      Logger.log('ERROR: No games provided');
+      return createCorsResponse({
         success: false,
         message: 'No games provided'
-      })).setMimeType(ContentService.MimeType.JSON);
+      });
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -355,6 +495,7 @@ function addTestGamesToSheet(games) {
       gamesSheet = ss.insertSheet('Games');
       gamesSheet.appendRow(['Week', 'GameID', 'Away', 'Home', 'Spread', 'AwaySpread', 'GameTime', 'Winner']);
       gamesSheet.getRange('A1:H1').setFontWeight('bold').setBackground('#d50a0a').setFontColor('#ffffff');
+      Logger.log('Created new Games sheet');
     }
 
     // Add all test games
@@ -384,16 +525,18 @@ function addTestGamesToSheet(games) {
       ]);
     });
 
-    return ContentService.createTextOutput(JSON.stringify({
+    Logger.log('Successfully added ' + games.length + ' test games to sheet');
+    return createCorsResponse({
       success: true,
       message: `Successfully added ${games.length} test games`
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
 
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
+    Logger.log('ERROR in addTestGamesToSheet: ' + error.toString());
+    return createCorsResponse({
       success: false,
       message: 'Error adding test games: ' + error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
   }
 }
 
