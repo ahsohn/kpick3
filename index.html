@@ -597,7 +597,7 @@
     <div class="header">
         <h1>NFL Pick'em Pool</h1>
         <div class="season">2026-2027 Season</div>
-        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Build: c8dfcc9</div>
+        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Build: 1ee3168</div>
     </div>
 
     <div class="container">
@@ -701,9 +701,10 @@
         <div id="admin" class="tab-content">
             <div class="admin-section" style="background: #1a1a2e; border: 2px solid #ef4444;">
                 <h3 style="color: #ef4444;">🔧 Debug: Test Pick Submission</h3>
-                <p>Use this to test if picks can be written to the sheet (bypasses all validation):</p>
-                <button onclick="sendDebugPick()" style="padding: 0.75rem 1.5rem; background: #ef4444; border: none; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; margin-top: 1rem;">Send Debug Pick to Sheet</button>
-                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">This will add a row with "DEBUG_[timestamp]" to your Picks sheet. If this works but regular picks don't, the issue is in the picks validation code.</p>
+                <p>Use this to test if picks can be written to the sheet:</p>
+                <button onclick="sendDebugPick()" style="padding: 0.75rem 1.5rem; background: #ef4444; border: none; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; margin-top: 1rem;">Debug Pick (bypass validation)</button>
+                <button onclick="sendRegularTestPick()" style="padding: 0.75rem 1.5rem; background: #f59e0b; border: none; border-radius: 8px; color: black; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; margin-top: 1rem; margin-left: 0.5rem;">Test Regular Pick (with validation)</button>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Debug = bypasses validation. Regular = uses exact same format as real picks. Check Apps Script logs for errors!</p>
             </div>
 
             <div class="admin-section">
@@ -1649,6 +1650,54 @@
             } catch (error) {
                 console.error('Error sending debug pick:', error);
                 showMessage('error', '✗ Error sending debug pick: ' + error.message);
+            }
+        }
+
+        // DEBUG: Send a regular pick (WITH validation) to test the full flow
+        async function sendRegularTestPick() {
+            if (!SCRIPT_URL) {
+                showMessage('error', 'Apps Script URL not configured.');
+                return;
+            }
+
+            // Use a unique username to avoid conflicts
+            const testUsername = 'RegularTestUser_' + Date.now();
+            // Use week 98 to avoid conflicts with real data
+            const testWeek = 98;
+            // Format: gameId-team (same format as real picks)
+            const testPicks = '1-away';
+
+            showMessage('info', `Sending regular test pick: username=${testUsername}, week=${testWeek}, picks=${testPicks}`);
+            console.log('Sending regular test pick:', { username: testUsername, week: testWeek, picks: testPicks });
+
+            try {
+                const formData = new FormData();
+                // NOTE: No "action" property - this is exactly like a real pick submission
+                formData.append('payload', JSON.stringify({
+                    username: testUsername,
+                    week: testWeek,
+                    picks: testPicks
+                }));
+
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: formData
+                });
+
+                showMessage('success', `✓ Regular test pick sent! Check Picks sheet for "${testUsername}" in week ${testWeek}. If it does NOT appear, check Apps Script Execution logs for the error.`);
+                console.log('Regular test pick request sent');
+
+                // Reload after delay
+                setTimeout(() => {
+                    loadData().then(() => {
+                        showMessage('info', 'Data refreshed. Check Picks sheet in Google Sheets directly for the test pick.');
+                    });
+                }, 3000);
+
+            } catch (error) {
+                console.error('Error sending regular test pick:', error);
+                showMessage('error', '✗ Error sending regular test pick: ' + error.message);
             }
         }
     </script>

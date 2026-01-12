@@ -304,6 +304,13 @@ function doPost(e) {
       return addDebugPick(data);
     }
 
+    // DEBUG: Test full pick flow with extra logging
+    if (data.action === 'debugFullPick') {
+      Logger.log('Processing debugFullPick - will run full validation with extra logging');
+      // Remove the action so it goes through normal flow
+      // but we'll add extra logging below
+    }
+
     // Otherwise, handle regular picks submission
     const username = data.username;
     const week = data.week;
