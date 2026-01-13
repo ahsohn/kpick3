@@ -597,7 +597,7 @@
     <div class="header">
         <h1>NFL Pick'em Pool</h1>
         <div class="season">2026-2027 Season</div>
-        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Build: a100637</div>
+        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Build: verify1</div>
     </div>
 
     <div class="container">
@@ -1240,19 +1240,24 @@
             const picksString = Array.from(selectedGames).join(',');
             const weekNumber = parseInt(currentWeek, 10); // Ensure week is a number
 
+            // Store picks before submission for verification
+            const submittedPicks = {
+                username: currentUser,
+                week: weekNumber,
+                picks: picksString
+            };
+
             showMessage('info', 'Submitting picks to Google Sheets...');
-            console.log('Submitting picks:', { username: currentUser, week: weekNumber, picks: picksString });
+            console.log('=== PICK SUBMISSION START ===');
+            console.log('Submitting picks:', submittedPicks);
 
             try {
                 // Submit to Google Apps Script using form data approach
                 // This method works better with Google Apps Script's redirect handling
                 const formData = new FormData();
-                formData.append('payload', JSON.stringify({
-                    username: currentUser,
-                    week: weekNumber,
-                    picks: picksString
-                }));
+                formData.append('payload', JSON.stringify(submittedPicks));
 
+                console.log('Sending POST to:', SCRIPT_URL);
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -1260,23 +1265,88 @@
                 });
 
                 // Note: With no-cors mode, we can't read the response
-                // But if no error is thrown, the request was sent successfully
-                showMessage('success', `✓ ${selectedGames.size} pick(s) submitted successfully for Week ${currentWeek}! Your picks have been saved to the Google Sheet.`);
-                console.log('Picks submitted successfully');
+                console.log('POST request completed (no-cors mode, cannot read response)');
+                showMessage('info', 'Request sent! Verifying picks were saved...');
 
+                const picksBeforeSubmit = [...picksData];
+                const submittedPicksCount = selectedGames.size;
                 selectedGames.clear();
                 updatePicksCount();
 
-                // Reload data after a delay to allow Google Sheets to update
-                // Google Sheets public API can have a caching delay
-                setTimeout(() => {
-                    showMessage('info', 'Refreshing data to verify picks were saved...');
-                    loadData().then(() => {
-                        loadGames(); // Reload games to show updated status
-                        loadMyPicks(); // Refresh user's pick history
-                        showMessage('success', 'Data refreshed! Check "My Picks" tab to see your saved picks.');
-                    });
-                }, 5000); // Increased delay to 5 seconds to account for Google Sheets caching
+                // Wait and then verify the picks were actually saved
+                setTimeout(async () => {
+                    console.log('=== VERIFICATION START ===');
+                    showMessage('info', 'Checking if picks were recorded in Google Sheets...');
+
+                    try {
+                        // Force fresh fetch with cache buster
+                        const cacheBuster = new Date().getTime();
+                        const picksUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Picks&_=${cacheBuster}`;
+
+                        console.log('Fetching picks from:', picksUrl);
+                        const verifyResponse = await fetch(picksUrl);
+                        const verifyText = await verifyResponse.text();
+                        const verifyJson = JSON.parse(verifyText.substring(47).slice(0, -2));
+
+                        // Look for our submitted picks
+                        let foundPick = false;
+                        const allRows = verifyJson.table.rows;
+                        console.log('Total rows in Picks sheet:', allRows.length);
+
+                        // Check last 10 rows for our pick
+                        const recentRows = allRows.slice(-10);
+                        console.log('Checking last 10 rows for our pick...');
+
+                        for (const row of recentRows) {
+                            const rowUsername = row.c[0]?.v;
+                            const rowWeek = row.c[1]?.v;
+                            const rowPicks = row.c[2]?.v;
+
+                            console.log('Row:', { username: rowUsername, week: rowWeek, picks: rowPicks });
+
+                            if (rowUsername === submittedPicks.username &&
+                                rowWeek == submittedPicks.week &&
+                                rowPicks === submittedPicks.picks) {
+                                foundPick = true;
+                                console.log('FOUND OUR PICK!');
+                                break;
+                            }
+                        }
+
+                        if (foundPick) {
+                            showMessage('success', `✓ VERIFIED: ${submittedPicksCount} pick(s) for Week ${submittedPicks.week} saved successfully! Check "My Picks" tab.`);
+                            console.log('=== VERIFICATION SUCCESS ===');
+                        } else {
+                            // Pick not found - show debug info
+                            const debugInfo = {
+                                submitted: submittedPicks,
+                                totalRowsInSheet: allRows.length,
+                                last5Rows: allRows.slice(-5).map(r => ({
+                                    username: r.c[0]?.v,
+                                    week: r.c[1]?.v,
+                                    picks: r.c[2]?.v
+                                }))
+                            };
+                            console.error('=== VERIFICATION FAILED ===');
+                            console.error('Pick NOT found in sheet!');
+                            console.error('Debug info:', JSON.stringify(debugInfo, null, 2));
+
+                            showMessage('error', `✗ PICK NOT SAVED! Your pick was sent but not found in the sheet. Debug info logged to console (F12). Submitted: ${JSON.stringify(submittedPicks)}`);
+
+                            // Also show in an alert for visibility
+                            alert(`PICK VERIFICATION FAILED!\n\nSubmitted:\n- User: ${submittedPicks.username}\n- Week: ${submittedPicks.week}\n- Picks: ${submittedPicks.picks}\n\nLast row in sheet:\n- User: ${debugInfo.last5Rows[debugInfo.last5Rows.length-1]?.username}\n- Week: ${debugInfo.last5Rows[debugInfo.last5Rows.length-1]?.week}\n- Picks: ${debugInfo.last5Rows[debugInfo.last5Rows.length-1]?.picks}\n\nCheck Apps Script Execution logs for errors!`);
+                        }
+
+                        // Reload all data
+                        await loadData();
+                        loadGames();
+                        loadMyPicks();
+
+                    } catch (verifyError) {
+                        console.error('Error during verification:', verifyError);
+                        showMessage('error', `✗ Could not verify if picks were saved: ${verifyError.message}. Check the Picks sheet manually.`);
+                    }
+                }, 6000); // Wait 6 seconds for Google Sheets to update
 
             } catch (error) {
                 console.error('Error submitting picks:', error);
