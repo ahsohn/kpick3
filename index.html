@@ -597,7 +597,7 @@
     <div class="header">
         <h1>NFL Pick'em Pool</h1>
         <div class="season">2026-2027 Season</div>
-        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Build: fixid1</div>
+        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Build: fixpicks1</div>
     </div>
 
     <div class="container">
@@ -934,13 +934,20 @@
                 const gamesText = await gamesResponse.text();
                 const gamesJson = JSON.parse(gamesText.substring(47).slice(0, -2));
                 
-                // Helper function to parse Google Sheets date/time
+                // Helper function to parse Google Sheets date/time and format to 12hr
                 function parseGoogleSheetsDate(value) {
                     if (!value) return null;
 
-                    // If it's already a formatted string (from f property), use it
-                    if (typeof value === 'string' && !value.startsWith('Date(')) {
-                        return value;
+                    // Helper to format Date object to 12hr string
+                    function formatTo12Hr(date) {
+                        return date.toLocaleString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                        });
                     }
 
                     // If it's a Date object string like "Date(2026,11,25,13,0,0)"
@@ -949,16 +956,18 @@
                         if (match) {
                             const [, year, month, day, hour, minute, second] = match;
                             const date = new Date(parseInt(year), parseInt(month), parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
-                            return date.toLocaleString('en-US', {
-                                timeZone: 'America/New_York',
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
-                            });
+                            return formatTo12Hr(date);
                         }
+                    }
+
+                    // If it's a formatted string like "1/12/2026 21:52:49", try to parse and reformat
+                    if (typeof value === 'string') {
+                        const parsed = new Date(value);
+                        if (!isNaN(parsed.getTime())) {
+                            return formatTo12Hr(parsed);
+                        }
+                        // If parsing failed, return as-is
+                        return value;
                     }
 
                     return value;
@@ -1434,7 +1443,11 @@
                 `;
 
                 allPicksForWeek.forEach(pick => {
-                    const [gameId, team] = pick.split('-');
+                    // Pick format is "gameId-team" where gameId can contain hyphens (e.g., "1-1-away")
+                    // Team is always the last segment
+                    const parts = pick.split('-');
+                    const team = parts.pop(); // Last part is team (away/home)
+                    const gameId = parts.join('-'); // Everything else is gameId
                     const game = gameData[week]?.find(g => g.id === gameId);
 
                     if (game) {
@@ -1498,11 +1511,16 @@
             weekPicks.forEach(userPick => {
                 const picks = userPick.picks.split(',').map(p => p.trim());
                 picks.forEach(pick => {
-                    const [gameId, team] = pick.split('-');
+                    // Pick format is "gameId-team" where gameId can contain hyphens (e.g., "1-1-away")
+                    const parts = pick.split('-');
+                    const team = parts.pop(); // Last part is team (away/home)
+                    const gameId = parts.join('-'); // Everything else is gameId
                     if (!picksByGame[gameId]) {
                         picksByGame[gameId] = { away: [], home: [] };
                     }
-                    picksByGame[gameId][team].push(userPick.username);
+                    if (team === 'away' || team === 'home') {
+                        picksByGame[gameId][team].push(userPick.username);
+                    }
                 });
             });
 
