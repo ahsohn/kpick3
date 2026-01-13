@@ -597,7 +597,7 @@
     <div class="header">
         <h1>NFL Pick'em Pool</h1>
         <div class="season">2026-2027 Season</div>
-        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Build: verify1</div>
+        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Build: debug2</div>
     </div>
 
     <div class="container">
@@ -966,7 +966,10 @@
 
                 // Parse games data
                 gameData = {};
-                gamesJson.table.rows.forEach(row => {
+                console.log('=== PARSING GAMES DATA ===');
+                console.log('Raw games rows:', gamesJson.table.rows);
+
+                gamesJson.table.rows.forEach((row, index) => {
                     const week = row.c[0]?.v;
                     const gameId = row.c[1]?.v;
                     const away = row.c[2]?.v;
@@ -976,6 +979,10 @@
                     const gameTimeRaw = row.c[6]?.v;
                     const gameTimeFormatted = row.c[6]?.f; // Formatted value from Google Sheets
                     const winner = row.c[7]?.v;
+
+                    // Debug: Log each row's raw data
+                    console.log(`Row ${index}: week=${week}, gameId=${gameId}, away=${away}, home=${home}`);
+                    console.log(`  Raw row.c[1]:`, row.c[1]);
 
                     // Use formatted value if available, otherwise parse the raw value
                     const gameTime = gameTimeFormatted || parseGoogleSheetsDate(gameTimeRaw);
@@ -993,6 +1000,9 @@
                         });
                     }
                 });
+
+                console.log('=== PARSED GAME DATA ===');
+                console.log('gameData:', gameData);
 
                 // Load Picks (with cache-busting to force fresh data)
                 const cacheBuster = new Date().getTime();
