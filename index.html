@@ -1664,8 +1664,9 @@
             const testUsername = 'RegularTestUser_' + Date.now();
             // Use week 98 to avoid conflicts with real data
             const testWeek = 98;
-            // Format: gameId-team (same format as real picks)
-            const testPicks = '1-away';
+            // Format: gameId-team where gameId is "week-gameNumber" (e.g., "98-1-away")
+            // This matches the actual format used by test games and real picks
+            const testPicks = '98-1-away';
 
             showMessage('info', `Sending regular test pick: username=${testUsername}, week=${testWeek}, picks=${testPicks}`);
             console.log('Sending regular test pick:', { username: testUsername, week: testWeek, picks: testPicks });

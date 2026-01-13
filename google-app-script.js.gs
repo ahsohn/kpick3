@@ -348,10 +348,16 @@ function doPost(e) {
         totalPicksForWeek += existingPicksArray.length;
 
         // Check for duplicate game picks
+        // Pick format is "{gameId}-{team}" where gameId can contain hyphens (e.g., "1-1-away")
+        // Team is always the LAST segment (away or home), gameId is everything before
         for (const newPick of newPicksArray) {
-          const newGameId = newPick.trim().split('-')[0];
+          const newParts = newPick.trim().split('-');
+          newParts.pop(); // Remove team (last element)
+          const newGameId = newParts.join('-'); // Rejoin remaining parts as gameId
           for (const existingPick of existingPicksArray) {
-            const existingGameId = existingPick.trim().split('-')[0];
+            const existingParts = existingPick.trim().split('-');
+            existingParts.pop(); // Remove team
+            const existingGameId = existingParts.join('-');
             if (newGameId === existingGameId) {
               Logger.log('ERROR: Duplicate pick for game ' + newGameId);
               return createCorsResponse({
