@@ -21,8 +21,9 @@ retired when DNS cut over to Vercel in July 2026.)
   week, keeps lines fresh until kickoff, and pins the season year so the offseason
   doesn't serve last year's schedule.
 - **Spreads lock at pick time.** Submitting a pick copies the current line onto the pick
-  (`picks.locked_spread`) — that's the number it's graded on forever, no matter how the
-  line moves later.
+  (`picks.locked_spread`) — that's the number it's graded on, no matter how the line
+  moves later. A pick can be **removed until kickoff** (server-validated); re-picking
+  locks whatever the spread is at that moment.
 - **Deadlines are server-enforced.** A pick is only accepted while the game's kickoff is
   in the future and its status is still `pre` — checked in the server action, not the UI.
 - **Everyone's picks stay hidden until kickoff**, enforced server-side: the All Picks
