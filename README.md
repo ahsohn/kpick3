@@ -9,10 +9,8 @@ scores 0 and kills the parlay.
 ## Stack
 
 Next.js (App Router, TypeScript) · Neon Postgres · Drizzle ORM · Tailwind CSS · Vercel.
-
-> The repo also still contains the **legacy static site** (`index.html`,
-> `google-app-script.js.gs`, `CNAME`) that GitHub Pages serves at kpick3.com until DNS
-> is cut over to Vercel. Delete those three files after the cutover.
+(Previously a static GitHub Pages site backed by Google Sheets + Apps Script — fully
+retired when DNS cut over to Vercel in July 2026.)
 
 ## How it works
 
@@ -70,9 +68,9 @@ parsing, season-year detection, session cookies, and the admin PIN hash.
    `ADMIN_EMAIL`, `ADMIN_PIN`.
 3. **Migrate + seed the production DB**: copy the Neon connection string into a local
    `.env`, then `npm run db:migrate && npm run seed`.
-4. Point `kpick3.com` at the project (Vercel → Domains + DNS change at your registrar),
-   then delete `CNAME`, `index.html`, and `google-app-script.js.gs` (retiring the
-   GitHub Pages site).
+4. Point `kpick3.com` at the project (Vercel → Domains + DNS change at your registrar).
+   Remember: env-var changes in Vercel only apply to the **next** deployment — redeploy
+   after adding or editing them.
 
 ## Scheduled sync (cron)
 
