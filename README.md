@@ -74,6 +74,10 @@ parsing, season-year detection, session cookies, and the admin PIN hash.
 
 ## Scheduled sync (cron)
 
+> **⚠ TBD — not set up yet (as of July 2026).** The cron-job.org job below still needs
+> to be created before the season starts in September. Until then, lines and scores only
+> update via the **Run sync now** button in `/admin`.
+
 Vercel **Hobby** only allows daily crons, so schedule an external job
 ([cron-job.org](https://cron-job.org)) every **10–15 minutes**:
 
