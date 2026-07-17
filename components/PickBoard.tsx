@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { submitPicks } from '@/app/actions/picks'
+import { removePick, submitPicks } from '@/app/actions/picks'
 import { formatSpread } from '@/lib/format'
 import type { BoardGame } from './board-types'
 
@@ -50,6 +50,21 @@ export function PickBoard({
       } else {
         setMessage({ kind: 'success', text: 'Picks locked in! Your spread is saved with each pick.' })
         setSelected(new Map())
+        router.refresh()
+      }
+    })
+  }
+
+  function remove(gameId: number) {
+    startTransition(async () => {
+      const result = await removePick(gameId)
+      if (result.error) {
+        setMessage({ kind: 'error', text: result.error })
+      } else {
+        setMessage({
+          kind: 'success',
+          text: 'Pick removed. If you re-pick this game later, it locks at the spread current at that time.',
+        })
         router.refresh()
       }
     })
@@ -150,6 +165,17 @@ export function PickBoard({
                   </button>
                 )
               })}
+
+              {myPick && !started && !game.canceled && (
+                <button
+                  type="button"
+                  onClick={() => remove(game.id)}
+                  disabled={pending}
+                  className="mt-1 w-full cursor-pointer rounded-lg border border-line py-1.5 text-xs font-semibold uppercase tracking-wider text-muted transition-colors hover:border-danger hover:text-danger disabled:opacity-50"
+                >
+                  ✕ Remove pick (allowed until kickoff)
+                </button>
+              )}
             </div>
           )
         })}

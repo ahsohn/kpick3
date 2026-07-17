@@ -91,3 +91,33 @@ export async function submitPicks(
   revalidatePath('/all-picks')
   return { ok: true }
 }
+
+/**
+ * Removes one of the caller's pending picks, allowed only while the game hasn't kicked
+ * off. Re-picking later locks whatever the spread is then — not the original number.
+ */
+export async function removePick(gameId: number): Promise<SubmitResult> {
+  const user = await requireUser()
+
+  const rows = await db.select().from(games).where(eq(games.id, gameId))
+  const game = rows[0]
+  if (!game) return { error: 'Unknown game.' }
+  if (game.kickoff <= new Date() || game.statusState !== 'pre') {
+    return { error: 'That game has already started — picks are final at kickoff.' }
+  }
+
+  const deleted = await db
+    .delete(picks)
+    .where(and(
+      eq(picks.userId, user.id),
+      eq(picks.gameId, gameId),
+      eq(picks.result, 'pending'),
+    ))
+    .returning()
+  if (deleted.length === 0) return { error: 'No pick to remove on that game.' }
+
+  revalidatePath('/')
+  revalidatePath('/my-picks')
+  revalidatePath('/all-picks')
+  return { ok: true }
+}
