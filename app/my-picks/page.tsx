@@ -70,7 +70,7 @@ export default async function MyPicksPage() {
                           <span className="ml-2 font-bold text-primary">{formatSpread(pick.lockedSpread)}</span>
                           <div className="mt-0.5 text-sm text-muted">
                             {game.awayTeamAbbr} @ {game.homeTeamAbbr} · {formatKickoff(game.kickoff)}
-                            {game.homeScore !== null && game.awayScore !== null && (
+                            {game.statusState !== 'pre' && game.homeScore !== null && game.awayScore !== null && (
                               <span className="ml-2 font-semibold text-ink">
                                 {game.awayScore}–{game.homeScore}
                                 {game.statusState === 'in' && game.statusDetail ? ` · ${game.statusDetail}` : game.completed ? ' · Final' : ''}
