@@ -1,11 +1,13 @@
 import type { Game } from '@/lib/db/schema'
-import { formatKickoff } from '@/lib/format'
+import { formatKickoff, formatKickoffDay, formatKickoffTime } from '@/lib/format'
 
 /** Serializable game shape passed to client components. */
 export interface BoardGame {
   id: number
   kickoffIso: string
   kickoffLabel: string
+  kickoffDay: string
+  kickoffTime: string
   statusState: string
   statusDetail: string | null
   completed: boolean
@@ -27,6 +29,8 @@ export function toBoardGame(g: Game): BoardGame {
     id: g.id,
     kickoffIso: g.kickoff.toISOString(),
     kickoffLabel: formatKickoff(g.kickoff),
+    kickoffDay: formatKickoffDay(g.kickoff),
+    kickoffTime: formatKickoffTime(g.kickoff),
     statusState: g.statusState,
     statusDetail: g.statusDetail,
     completed: g.completed,

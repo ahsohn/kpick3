@@ -20,17 +20,20 @@ export async function isEnrolled(userId: number, season: number): Promise<boolea
   return rows.length > 0
 }
 
-/** Teams already burned this season. Void picks (canceled games) don't count. */
-export async function getUsedTeams(userId: number, season: number): Promise<Set<string>> {
+/**
+ * Teams already burned this season, mapped to the week they were used. Void picks
+ * (canceled games) don't count.
+ */
+export async function getUsedTeams(userId: number, season: number): Promise<Map<string, number>> {
   const rows = await db
-    .select({ teamAbbr: survivorPicks.teamAbbr })
+    .select({ teamAbbr: survivorPicks.teamAbbr, week: survivorPicks.week })
     .from(survivorPicks)
     .where(and(
       eq(survivorPicks.userId, userId),
       eq(survivorPicks.season, season),
       ne(survivorPicks.result, 'void'),
     ))
-  return new Set(rows.map((r) => r.teamAbbr))
+  return new Map(rows.map((r) => [r.teamAbbr, r.week]))
 }
 
 /** The caller's pick for a week — the live (non-void) one if a void was replaced. */

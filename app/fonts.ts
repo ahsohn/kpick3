@@ -1,13 +1,8 @@
-import { Barlow, Bebas_Neue } from 'next/font/google'
+import { Archivo } from 'next/font/google'
 
-export const barlow = Barlow({
+export const archivo = Archivo({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-barlow',
-})
-
-export const bebas = Bebas_Neue({
-  subsets: ['latin'],
-  weight: '400',
-  variable: '--font-bebas',
+  weight: ['500', '600', '700', '800'],
+  style: ['normal', 'italic'],
+  variable: '--font-archivo',
 })

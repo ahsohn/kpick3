@@ -1,36 +1,69 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-primary: #d50a0a;
-  --color-primary-dark: #9a0707;
-  --color-secondary: #013369;
-  --color-background: #0a0e14;
-  --color-surface: #151a23;
-  --color-surface-light: #1d2433;
-  --color-ink: #ffffff;
-  --color-muted: #8b96a8;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-line: #2a3444;
+  /* Prime Time palette */
+  --color-background: #0c0e13;
+  --color-header: #0f1218;
+  --color-surface: #12151d;
+  --color-surface-2: #151924;
+  --color-surface-3: #181c26;
+  --color-tile: #1c212c;
 
-  --font-display: var(--font-bebas), sans-serif;
-  --font-body: var(--font-barlow), sans-serif;
+  --color-hairline: #1b2029;
+  --color-card: #1e2330;
+  --color-control: #262b38;
+  --color-strong: #2c3242;
+
+  --color-ink: #f2f4f8;
+  --color-ink-2: #c6cdd9;
+  --color-muted: #8a93a6;
+  --color-placeholder: #5d6676;
+
+  --color-accent: #e5484d;
+  --color-accent-hover: #f25b60;
+  --color-accent-text: #ff6b6f;
+  --color-green: #2fbf71;
+  --color-amber: #f2b23e;
+  --color-amber-hover: #f7c159;
+  --color-amber-ink: #14100a;
+  --color-slate: #7da7d9;
+
+  --color-gold: #ffd700;
+  --color-silver: #c0c0c0;
+  --color-bronze: #cd7f32;
+
+  /* Legacy aliases (admin panels & shared controls) */
+  --color-primary: #e5484d;
+  --color-primary-dark: #c2383d;
+  --color-secondary: #2b4a75;
+  --color-surface-light: #181c26;
+  --color-success: #2fbf71;
+  --color-warning: #f2b23e;
+  --color-danger: #e5484d;
+  --color-line: #262b38;
+
+  --font-body: var(--font-archivo), sans-serif;
 }
 
 body {
   font-family: var(--font-body);
   background: var(--color-background);
   color: var(--color-ink);
-  background-image:
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.01) 2px, rgba(255, 255, 255, 0.01) 4px),
-    radial-gradient(circle at 20% 50%, rgba(213, 10, 10, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(1, 51, 105, 0.05) 0%, transparent 50%);
   min-height: 100vh;
 }
 
+/* Legacy display headings (admin panels) — Archivo heavy caps now */
 .ff-display {
-  font-family: var(--font-display);
-  letter-spacing: 0.05em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.live-dot {
+  animation: live-pulse 1.5s ease-in-out infinite;
 }

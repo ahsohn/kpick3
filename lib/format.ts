@@ -15,6 +15,23 @@ export function formatKickoff(d: Date): string {
   return `${day} · ${time} ET`
 }
 
+/** Kickoff day for the status column, e.g. "SUN". */
+export function formatKickoffDay(d: Date): string {
+  return d
+    .toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short' })
+    .toUpperCase()
+}
+
+/** Kickoff time for the status column, e.g. "4:25 PM". */
+export function formatKickoffTime(d: Date): string {
+  return d.toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
 /** Spread for display: "+3.5", "-7", or "PK" for a pick'em. */
 export function formatSpread(spread: number | null): string {
   if (spread === null) return '—'

@@ -35,6 +35,7 @@ export default async function AdminPage() {
 
   return (
     <Shell user={user} week={currentWeek}>
+      <div className="mx-auto max-w-6xl px-7 pb-10 pt-6 max-lg:px-4">
       <AdminPanels
         users={allUsers.map((u) => ({
           id: u.id,
@@ -52,6 +53,7 @@ export default async function AdminPage() {
           awayAbbr: g.awayTeamAbbr,
         }))}
       />
+      </div>
     </Shell>
   )
 }
