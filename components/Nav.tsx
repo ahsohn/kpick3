@@ -8,6 +8,7 @@ const TABS = [
   { href: '/my-picks', label: 'My Picks' },
   { href: '/all-picks', label: 'All Picks' },
   { href: '/standings', label: 'Standings' },
+  { href: '/survivor', label: 'Survivor' },
 ]
 
 export function Nav({ isAdmin }: { isAdmin: boolean }) {

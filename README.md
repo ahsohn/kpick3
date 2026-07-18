@@ -4,6 +4,9 @@ A private NFL pick'em pool: every week each player picks **3 games against the s
 1 point per win, +1 bonus for a 3-for-3 parlay. A push (landing exactly on the number)
 scores 0 and kills the parlay.
 
+The site also runs a separate **survivor pool** (see below) — most players are in both,
+but each pool has its own per-season enrollment.
+
 **Live:** https://kpick3.com
 
 ## Stack
@@ -45,6 +48,27 @@ retired when DNS cut over to Vercel in July 2026.)
 | Correct pick (covers the locked spread) | 1 |
 | All 3 picks correct | +1 parlay bonus (4 total) |
 | Push / void / loss | 0 (a push or void also kills the parlay) |
+
+## Survivor pool
+
+Classic sudden-death survivor on `/survivor`, sharing the same games, sync and login:
+
+- Each week every enrolled player picks **one team to win straight-up** (no spread).
+  Lose once — including a **tie**, or a week with **no pick** — and you're out. Each
+  franchise can be used **once per season** (enforced by the DB).
+- **Same lock rules as pick3**: the pick locks at *that game's* kickoff, can be changed
+  or removed until then, and stays hidden from other players until kickoff.
+- A **canceled game voids** the pick: the player survives and the team doesn't count as
+  used (the week can even be re-picked if games remain).
+- The pool ends when one player remains; if everyone left loses in the same week they're
+  **co-champions**. Elimination and champion status are **derived from graded picks** —
+  nothing stored that can drift stale (champions are only declared once a week is fully
+  graded, so a Thursday loss can't crown someone prematurely).
+- Eliminated players keep full view access; the grid on `/survivor` shows everyone's
+  season. The pick3 homepage shows a **banner** for enrolled players who haven't picked
+  yet, escalating as kickoffs pass.
+- Admin enrolls players per season in `/admin`; grading rides the same cron sync
+  (straight-up, so no spread needed) and the same needs-review flow.
 
 ## Local setup
 

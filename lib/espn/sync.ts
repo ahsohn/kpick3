@@ -1,9 +1,10 @@
 import { db } from '@/lib/db'
-import { games, picks } from '@/lib/db/schema'
+import { games, picks, survivorPicks } from '@/lib/db/schema'
 import { and, eq, isNull, lt, ne, sql } from 'drizzle-orm'
 import { fetchScoreboard } from './fetch'
 import { parseEvent, isRegularSeason, nflSeasonYear, type ParsedGame } from './parse'
 import { gradePick } from '@/lib/picks/grading'
+import { gradeSurvivorPick } from '@/lib/survivor/logic'
 
 /**
  * One cron pass: pull the current ESPN scoreboard, upsert regular-season games (keeping
@@ -115,6 +116,7 @@ export async function gradeFinishedGames() {
   let gradedGames = 0
   let flagged = 0
   let voided = 0
+  let survivorGraded = 0
 
   for (const game of ungraded) {
     if (game.canceled) {
@@ -122,6 +124,11 @@ export async function gradeFinishedGames() {
         .update(picks)
         .set({ result: 'void', gradedAt: new Date() })
         .where(and(eq(picks.gameId, game.id), eq(picks.result, 'pending')))
+      // A voided survivor pick survives and frees the team + week slot for a re-pick.
+      await db
+        .update(survivorPicks)
+        .set({ result: 'void', gradedAt: new Date() })
+        .where(and(eq(survivorPicks.gameId, game.id), eq(survivorPicks.result, 'pending')))
       await db.update(games).set({ gradedAt: new Date() }).where(eq(games.id, game.id))
       voided++
       continue
@@ -153,9 +160,28 @@ export async function gradeFinishedGames() {
         .where(eq(picks.id, p.id))
     }
 
+    // Survivor picks on the same game grade straight-up (a tie is a loss).
+    const gameSurvivorPicks = await db
+      .select()
+      .from(survivorPicks)
+      .where(and(eq(survivorPicks.gameId, game.id), eq(survivorPicks.result, 'pending')))
+
+    for (const p of gameSurvivorPicks) {
+      const result = gradeSurvivorPick(
+        p.side as 'home' | 'away',
+        game.homeScore,
+        game.awayScore
+      )
+      await db
+        .update(survivorPicks)
+        .set({ result, gradedAt: new Date() })
+        .where(eq(survivorPicks.id, p.id))
+      survivorGraded++
+    }
+
     await db.update(games).set({ gradedAt: new Date() }).where(eq(games.id, game.id))
     gradedGames++
   }
 
-  return { gradedGames, flagged, voided }
+  return { gradedGames, flagged, voided, survivorGraded }
 }

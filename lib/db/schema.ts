@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   pgTable, serial, text, integer, boolean, timestamp, real, index, uniqueIndex,
 } from 'drizzle-orm/pg-core'
@@ -65,6 +66,45 @@ export const picks = pgTable('picks', {
   byGame: index('picks_game_idx').on(t.gameId),
 }))
 
+// Survivor pool enrollment, per season. Being enrolled is what makes the pick UI and
+// homepage banner appear; players not in the pool can still view everything.
+export const survivorEntries = pgTable('survivor_entries', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  season: integer('season').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  onePerSeason: uniqueIndex('survivor_entries_user_season_uq').on(t.userId, t.season),
+}))
+
+export const survivorPicks = pgTable('survivor_picks', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  gameId: integer('game_id').notNull().references(() => games.id),
+  season: integer('season').notNull(),
+  week: integer('week').notNull(),
+  side: text('side').notNull(),                   // 'home' | 'away'
+  // Denormalized from the game row at submit time (never client-supplied) — the
+  // one-team-per-season rule is about the franchise, so it's enforced on this column.
+  teamAbbr: text('team_abbr').notNull(),
+  result: text('result').notNull().default('pending'), // pending|win|loss|void (no push straight-up)
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  gradedAt: timestamp('graded_at', { withTimezone: true }),
+}, (t) => ({
+  // Both unique constraints skip voided picks: a canceled game frees the week slot AND
+  // the team, while the void row stays behind as grid history.
+  onePerWeek: uniqueIndex('survivor_picks_user_week_uq')
+    .on(t.userId, t.season, t.week)
+    .where(sql`${t.result} <> 'void'`),
+  oneTeamPerSeason: uniqueIndex('survivor_picks_user_team_uq')
+    .on(t.userId, t.season, t.teamAbbr)
+    .where(sql`${t.result} <> 'void'`),
+  byGame: index('survivor_picks_game_idx').on(t.gameId),
+  bySeasonWeek: index('survivor_picks_season_week_idx').on(t.season, t.week),
+}))
+
 export type User = typeof users.$inferSelect
 export type Game = typeof games.$inferSelect
 export type Pick = typeof picks.$inferSelect
+export type SurvivorEntry = typeof survivorEntries.$inferSelect
+export type SurvivorPick = typeof survivorPicks.$inferSelect
