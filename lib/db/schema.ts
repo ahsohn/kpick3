@@ -34,8 +34,9 @@ export const games = pgTable('games', {
   awayScore: integer('away_score'),
   period: integer('period'),                      // quarter while in progress
   displayClock: text('display_clock'),
-  // Current line, refreshed by the cron until kickoff. Home-relative: negative means
-  // the home team is favored (e.g. -3.5). Picks copy their own locked value.
+  // Current line, refreshed by the cron until the game's line-lock time (Sat 1 PM ET
+  // for Sun/Mon games, 1 PM ET the day before otherwise), then frozen. Home-relative:
+  // negative means the home team is favored (e.g. -3.5).
   homeSpread: real('home_spread'),
   spreadDetails: text('spread_details'),          // ESPN's display string, e.g. "KC -3.5"
   oddsAvailable: boolean('odds_available').notNull().default(false),
@@ -54,8 +55,9 @@ export const picks = pgTable('picks', {
   season: integer('season').notNull(),
   week: integer('week').notNull(),
   side: text('side').notNull(),                   // 'home' | 'away'
-  // Spread for the picked team at submission time (points added to their score);
-  // +3.5 = underdog, -3.5 = favorite. This is what the pick is graded against, forever.
+  // The picked team's official line (points added to their score); +3.5 = underdog.
+  // Stamped at submission and re-stamped by the sync until the game's line locks, so
+  // every pick on a game is graded on the same locked number.
   lockedSpread: real('locked_spread').notNull(),
   result: text('result').notNull().default('pending'), // pending|win|loss|push|void
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

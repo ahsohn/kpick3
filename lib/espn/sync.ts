@@ -5,6 +5,8 @@ import { fetchScoreboard } from './fetch'
 import { parseEvent, isRegularSeason, nflSeasonYear, type ParsedGame } from './parse'
 import { gradePick } from '@/lib/picks/grading'
 import { gradeSurvivorPick } from '@/lib/survivor/logic'
+import { isLineLocked } from '@/lib/picks/line-lock'
+import { spreadForSide } from '@/lib/format'
 
 /**
  * One cron pass: pull the current ESPN scoreboard, upsert regular-season games (keeping
@@ -45,12 +47,37 @@ export async function runSyncPass() {
     for (const g of weekEvents.map(parseEvent)) await upsertGame(g)
   }
 
+  await restampUnlockedPicks()
+
   const graded = await gradeFinishedGames()
   return { synced: parsed.length, ...graded }
 }
 
+/**
+ * Until a game's line locks, every pending pick rides the current line: each pass
+ * re-stamps them, so at lock time everyone sits on the same official number no
+ * matter when they picked. After lock the game row is frozen, so this converges.
+ */
+async function restampUnlockedPicks() {
+  const rows = await db
+    .select({ pick: picks, kickoff: games.kickoff, homeSpread: games.homeSpread })
+    .from(picks)
+    .innerJoin(games, eq(games.id, picks.gameId))
+    .where(and(eq(picks.result, 'pending'), eq(games.statusState, 'pre')))
+
+  const now = new Date()
+  for (const { pick, kickoff, homeSpread } of rows) {
+    if (homeSpread === null || isLineLocked(kickoff, now)) continue
+    const fresh = spreadForSide(homeSpread, pick.side as 'home' | 'away')
+    if (fresh !== pick.lockedSpread) {
+      await db.update(picks).set({ lockedSpread: fresh }).where(eq(picks.id, pick.id))
+    }
+  }
+}
+
 async function upsertGame(g: ParsedGame) {
   const oddsAvailable = g.homeSpread !== null
+  const locked = isLineLocked(g.kickoff)
   await db
     .insert(games)
     .values({
@@ -91,9 +118,15 @@ async function upsertGame(g: ParsedGame) {
         awayScore: g.awayScore,
         period: g.period,
         displayClock: g.displayClock,
-        // Keep the last good line once ESPN strips odds near/after kickoff.
-        homeSpread: oddsAvailable ? g.homeSpread : sql`${games.homeSpread}`,
-        spreadDetails: oddsAvailable ? g.spreadDetails : sql`${games.spreadDetails}`,
+        // Until lock, keep the line fresh (but keep the last good one when ESPN
+        // strips odds near kickoff). After lock the line is frozen — only a
+        // still-null line may fill in with the first number ESPN posts.
+        homeSpread: locked
+          ? sql`COALESCE(${games.homeSpread}, ${g.homeSpread})`
+          : oddsAvailable ? g.homeSpread : sql`${games.homeSpread}`,
+        spreadDetails: locked
+          ? sql`CASE WHEN ${games.homeSpread} IS NULL THEN ${g.spreadDetails} ELSE ${games.spreadDetails} END`
+          : oddsAvailable ? g.spreadDetails : sql`${games.spreadDetails}`,
         oddsAvailable: oddsAvailable ? true : sql`${games.oddsAvailable}`,
         updatedAt: new Date(),
       },
