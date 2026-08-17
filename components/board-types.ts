@@ -1,5 +1,6 @@
 import type { Game } from '@/lib/db/schema'
 import { formatKickoff, formatKickoffDay, formatKickoffTime } from '@/lib/format'
+import { isLineLocked, lineLockTime } from '@/lib/picks/line-lock'
 
 /** Serializable game shape passed to client components. */
 export interface BoardGame {
@@ -22,6 +23,8 @@ export interface BoardGame {
   awayScore: number | null
   homeSpread: number | null
   oddsAvailable: boolean
+  lineLocked: boolean
+  lineLocksLabel: string // e.g. "Sat, Sep 12 · 1:00 PM ET"
 }
 
 export function toBoardGame(g: Game): BoardGame {
@@ -45,5 +48,7 @@ export function toBoardGame(g: Game): BoardGame {
     awayScore: g.awayScore,
     homeSpread: g.homeSpread,
     oddsAvailable: g.oddsAvailable,
+    lineLocked: isLineLocked(g.kickoff),
+    lineLocksLabel: formatKickoff(lineLockTime(g.kickoff)),
   }
 }

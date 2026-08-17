@@ -61,7 +61,7 @@ export function PickBoard({
       if (result.error) {
         setMessage({ kind: 'error', text: result.error })
       } else {
-        setMessage({ kind: 'success', text: 'Picks locked in — your spread is saved.' })
+        setMessage({ kind: 'success', text: 'Picks in — each game grades on its locked line.' })
         setSelected(new Map())
         setSheetExpanded(false)
         router.refresh()
@@ -70,7 +70,7 @@ export function PickBoard({
   }
 
   function removeLocked(gameId: number) {
-    if (!window.confirm('Remove this pick? If you re-pick this game later, it locks at the spread current at that time.')) {
+    if (!window.confirm('Remove this pick? You can re-pick any open game until kickoff.')) {
       return
     }
     startTransition(async () => {
@@ -190,6 +190,10 @@ export function PickBoard({
         title: `${teamName} ${formatSpread(p.lockedSpread)}`,
         detail: `${opp} · ${titleDay(game.kickoffDay)} ${game.kickoffTime}`,
         removable: !gameStarted(game, now) && !game.canceled,
+        lineWarning:
+          !game.lineLocked && !gameStarted(game, now) && !game.canceled
+            ? `Line locks ${game.lineLocksLabel}`
+            : null,
       }
     })
     .filter((e): e is NonNullable<typeof e> => e !== null)
@@ -220,10 +224,15 @@ export function PickBoard({
             <div>
               <div className="text-[13px] font-bold">{e.title}</div>
               <div className="text-[11px] text-muted">{e.detail}</div>
+              {e.lineWarning && (
+                <div className="mt-0.5 text-[11px] font-semibold text-amber">
+                  ⚠ {e.lineWarning} — graded on the locked line, check back before kickoff
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded-[5px] border border-green/40 px-1.5 py-0.5 text-[10px] font-extrabold tracking-[.08em] text-green">
-                LOCKED
+                {e.lineWarning ? 'PICK IN' : 'LOCKED'}
               </span>
               {e.removable && (
                 <button
@@ -299,7 +308,7 @@ export function PickBoard({
         )}
         <p className="mb-0 mt-2.5 text-center text-[11px] leading-relaxed text-muted">
           {remaining > 0
-            ? 'Your spread is saved the moment you submit — line moves after that don’t touch you.'
+            ? 'Every pick grades on the game’s locked line — lines lock 1 PM ET the day before each game (Saturday for Sun/Mon).'
             : 'All 3 picks are in for this week.'}
         </p>
       </>

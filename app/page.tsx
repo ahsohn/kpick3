@@ -41,7 +41,7 @@ export default async function MakePicksPage({
         weeks={ctx.weeks}
         current={ctx.week}
         basePath="/"
-        helper="Spreads lock when you submit · picks lock at kickoff"
+        helper="Lines lock 1 PM ET the day before each game · picks lock at kickoff"
       />
       <PickBoard
         games={games.map((g) => toBoardGame(withLive(g, overlays)))}

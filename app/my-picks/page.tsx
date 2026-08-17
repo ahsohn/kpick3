@@ -6,6 +6,7 @@ import { Shell } from '@/components/Shell'
 import { getCurrentSeason, getCurrentWeek } from '@/lib/picks/queries'
 import { weeklyPoints, type PickResult } from '@/lib/picks/grading'
 import { formatKickoff, formatSpread } from '@/lib/format'
+import { isLineLocked, lineLockTime } from '@/lib/picks/line-lock'
 import { ResultBadge } from '@/components/ResultBadge'
 
 export const dynamic = 'force-dynamic'
@@ -108,6 +109,11 @@ export default async function MyPicksPage() {
                               {teamName} {formatSpread(pick.lockedSpread)}
                             </span>
                             <div className="mt-0.5 text-xs text-muted">{detail}</div>
+                            {pick.result === 'pending' && game.statusState === 'pre' && !isLineLocked(game.kickoff) && (
+                              <div className="mt-0.5 text-xs font-semibold text-amber">
+                                ⚠ Line locks {formatKickoff(lineLockTime(game.kickoff))} — check back before kickoff in case it moves
+                              </div>
+                            )}
                           </div>
                           <ResultBadge result={pick.result as PickResult} />
                         </div>
@@ -115,8 +121,8 @@ export default async function MyPicksPage() {
                     })}
                     {week === currentWeek && slotsOpen > 0 && (
                       <div className="rounded-[10px] border border-dashed border-strong p-3 text-center text-xs text-muted">
-                        Pick {slotsOpen === 3 ? '3' : `${slotsOpen} more`} still open — spreads lock when
-                        you submit
+                        Pick {slotsOpen === 3 ? '3' : `${slotsOpen} more`} still open — each pick grades
+                        on the game&rsquo;s locked line
                       </div>
                     )}
                   </div>
