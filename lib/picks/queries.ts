@@ -35,6 +35,12 @@ export async function getCurrentWeek(season: number): Promise<number> {
   return latest[0]?.week ?? 1
 }
 
+/** Time of the last successful sync pass (every pass re-stamps games.updated_at). */
+export async function getLastSyncTime(): Promise<Date | null> {
+  const rows = await db.select({ last: max(games.updatedAt) }).from(games)
+  return rows[0]?.last ?? null
+}
+
 export async function getGamesForWeek(season: number, week: number): Promise<Game[]> {
   return db
     .select()
