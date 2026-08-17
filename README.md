@@ -21,12 +21,13 @@ retired when DNS cut over to Vercel in July 2026.)
   super admin additionally enters a **PIN**. Admin pre-creates players in `/admin`.
 - **Games, spreads & scores** sync from ESPN's public NFL API into Postgres via
   `GET /api/cron/sync` (authorized by `CRON_SECRET`). The sync auto-detects the current
-  week, keeps lines fresh until kickoff, and pins the season year so the offseason
-  doesn't serve last year's schedule.
-- **Spreads lock at pick time.** Submitting a pick copies the current line onto the pick
-  (`picks.locked_spread`) — that's the number it's graded on, no matter how the line
-  moves later. A pick can be **removed until kickoff** (server-validated); re-picking
-  locks whatever the spread is at that moment.
+  week, keeps lines fresh until each game's line lock, and pins the season year so the
+  offseason doesn't serve last year's schedule.
+- **Lines lock at fixed times.** A game's line freezes at **1 PM ET the day before
+  the game** — **Saturday 1 PM ET** for Sunday/Monday games. Every pick on a game is
+  graded on its **locked line** no matter when it was submitted: picks made earlier
+  ride the current line until lock (the UI warns you to check back before kickoff).
+  Picks can still be made or **removed until kickoff** (server-validated).
 - **Deadlines are server-enforced.** A pick is only accepted while the game's kickoff is
   in the future and its status is still `pre` — checked in the server action, not the UI.
 - **Everyone's picks stay hidden until kickoff**, enforced server-side: the All Picks
@@ -104,7 +105,11 @@ parsing, season-year detection, session cookies, and the admin PIN hash.
 > update via the **Run sync now** button in `/admin`.
 
 Vercel **Hobby** only allows daily crons, so schedule an external job
-([cron-job.org](https://cron-job.org)) every **10–15 minutes**:
+([cron-job.org](https://cron-job.org)) **hourly at :55** — hourly is enough now that
+lines freeze at fixed lock times, and :55 puts the last pre-lock sync at 12:55 PM ET
+so the locked number is minutes-fresh. If the job stops running, the site keeps
+serving the most recently fetched lines and the admin sees a warning banner once the
+last sync is more than 75 minutes old.
 
 ```
 GET https://kpick3.com/api/cron/sync
