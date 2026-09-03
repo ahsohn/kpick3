@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { notifications, users } from '@/lib/db/schema'
+import { games, notifications, users } from '@/lib/db/schema'
 import { eq, inArray } from 'drizzle-orm'
 import {
   getCurrentSeason,
@@ -21,7 +21,7 @@ import { sendEmail } from '@/lib/email/send'
 import { signUnsubscribeToken } from '@/lib/email/unsubscribe'
 import { reminderWindow } from './windows'
 import { needsPick3Reminder, needsSurvivorReminder, pickableGames, weekFullyGraded } from './eligibility'
-import { reminderEmail, recapEmail, SITE_URL } from './emails'
+import { reminderEmail, recapEmail, needsReviewEmail, SITE_URL } from './emails'
 
 /**
  * Runs after every sync pass. Each sub-pass is independently fault-isolated and every
@@ -235,6 +235,40 @@ async function runRecapPass(now: Date): Promise<number> {
   return sent
 }
 
+/**
+ * Emails the super admin about newly flagged finals. One email per batch of new
+ * flags; each game alerts once ever (resolving it clears the flag, and re-flagging
+ * the same game id stays deduped — acceptable for this failure mode).
+ */
 async function runAdminAlertPass(): Promise<number> {
-  return 0 // implemented in a later task
+  const adminEmail = process.env.ADMIN_EMAIL
+  if (!adminEmail) return 0
+
+  const flagged = await db.select().from(games).where(eq(games.needsReview, true))
+  const fresh: typeof flagged = []
+  const claimed: string[] = []
+  for (const g of flagged) {
+    const key = `needs_review:g${g.id}`
+    if (await claimKey('needs_review', key, null)) {
+      fresh.push(g)
+      claimed.push(key)
+    }
+  }
+  if (fresh.length === 0) return 0
+
+  const content = needsReviewEmail(
+    fresh.map((g) => ({ week: g.week, awayTeamAbbr: g.awayTeamAbbr, homeTeamAbbr: g.homeTeamAbbr }))
+  )
+  const result = await sendEmail({
+    to: adminEmail,
+    subject: content.subject,
+    html: content.html,
+    text: content.text,
+  })
+  if (!result.sent) {
+    await releaseKeys(claimed)
+    console.error(`[notify] admin alert failed: ${result.reason}`)
+    return 0
+  }
+  return 1
 }

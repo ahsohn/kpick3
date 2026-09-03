@@ -41,6 +41,9 @@ retired when DNS cut over to Vercel in July 2026.)
   (cached ~30s, shared across renders) so they're fresher than the last cron tick; if
   ESPN is unreachable pages still render from the DB. Live scores never feed grading.
 - **Times** display in US Eastern.
+- **Email**: reminders, weekly recaps and admin alerts go out via Resend, riding the
+  sync cron. Players can opt out via the unsubscribe link in any email (or the admin
+  toggle in `/admin`).
 
 ## Scoring
 
@@ -75,7 +78,9 @@ Classic sudden-death survivor on `/survivor`, sharing the same games, sync and l
 
 1. `npm install`
 2. Copy `.env.example` to `.env` and fill in `DATABASE_URL` (Neon), `SESSION_SECRET`,
-   `CRON_SECRET`, `ADMIN_EMAIL`, `ADMIN_PIN`.
+   `CRON_SECRET`, `ADMIN_EMAIL`, `ADMIN_PIN`. Optional: `RESEND_API_KEY` + `EMAIL_FROM`
+   enable outbound email (reminders, recaps, admin alerts); leave them unset and all
+   sends are logged no-ops.
 3. `npm run db:migrate` — apply the schema to your Neon database.
 4. `npm run seed` — create/refresh the super-admin user from `ADMIN_EMAIL` + `ADMIN_PIN`.
 5. `npm run dev` — sign in with the admin email + PIN, add players in `/admin`, and hit
@@ -91,7 +96,9 @@ parsing, season-year detection, session cookies, and the admin PIN hash.
 1. Import this repo as a Vercel project; add the **Neon** integration (auto-sets
    `DATABASE_URL`). Auto-deploys on every push to `main`.
 2. Set env vars in Vercel (Production + Preview): `SESSION_SECRET`, `CRON_SECRET`,
-   `ADMIN_EMAIL`, `ADMIN_PIN`.
+   `ADMIN_EMAIL`, `ADMIN_PIN`, `RESEND_API_KEY`, `EMAIL_FROM` — create a free
+   [Resend](https://resend.com) account, verify `kpick3.com` (DNS records at the
+   registrar), and mint an API key.
 3. **Migrate + seed the production DB**: copy the Neon connection string into a local
    `.env`, then `npm run db:migrate && npm run seed`.
 4. Point `kpick3.com` at the project (Vercel → Domains + DNS change at your registrar).
@@ -122,6 +129,13 @@ Manual trigger: same URL with the header (or `?secret=<CRON_SECRET>`), or the
 
 Pick deadlines do **not** depend on the cron (kickoff is checked at submission time);
 the cron keeps lines fresh, pulls scores, and grades finished games.
+
+The same cron pass also sends email: pick reminders (Sat + Sun from 9 AM ET to
+anyone missing picks), a weekly recap once every game of a week is graded, and a
+needs-review alert to the admin. Sends are deduped in the `notifications` table, so
+hourly re-runs never double-send. **Turn on cron-job.org's "notify on failure"
+setting** — a dead cron can't email you about itself, so the scheduler's own
+failure alert (plus the `/admin` stale banner) covers that case.
 
 ## Security notes
 

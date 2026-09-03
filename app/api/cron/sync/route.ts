@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runSyncPass } from '@/lib/espn/sync'
+import { runNotifyPass } from '@/lib/notify/pass'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -14,5 +15,12 @@ export async function GET(req: NextRequest) {
   }
 
   const result = await runSyncPass()
-  return NextResponse.json({ ok: true, ...result })
+  // Notifications ride the same cron but must never fail the sync response.
+  let notified: Awaited<ReturnType<typeof runNotifyPass>> | { error: string }
+  try {
+    notified = await runNotifyPass()
+  } catch (err) {
+    notified = { error: err instanceof Error ? err.message : 'notify failed' }
+  }
+  return NextResponse.json({ ok: true, ...result, notified })
 }
