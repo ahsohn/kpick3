@@ -11,9 +11,22 @@ export function pickableGames<T extends ReminderGame>(games: T[], now: Date): T[
   return games.filter((g) => !g.canceled && g.statusState === 'pre' && g.kickoff > now)
 }
 
-/** Pick3: remind anyone with fewer than 3 picks while pickable games remain. */
-export function needsPick3Reminder(pickCount: number, games: ReminderGame[], now: Date): boolean {
-  return pickCount < 3 && pickableGames(games, now).length > 0
+/**
+ * Pick3: remind anyone with fewer than 3 picks while pickable games remain. When
+ * pickedGameIds is provided, a pickable game the player has already picked doesn't
+ * count — one pick per game means it can't absorb another pick — so the reminder
+ * only fires if at least one pickable game is still actually available to them.
+ */
+export function needsPick3Reminder<T extends ReminderGame & { id?: number }>(
+  pickCount: number,
+  games: T[],
+  now: Date,
+  pickedGameIds?: Set<number>
+): boolean {
+  if (pickCount >= 3) return false
+  const pickable = pickableGames(games, now)
+  if (!pickedGameIds) return pickable.length > 0
+  return pickable.some((g) => g.id === undefined || !pickedGameIds.has(g.id))
 }
 
 export interface SurvivorReminderState {

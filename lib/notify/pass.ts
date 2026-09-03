@@ -29,6 +29,11 @@ import { reminderEmail, recapEmail, needsReviewEmail, SITE_URL } from './emails'
  * freely — the second tick of a window is a pile of no-ops.
  */
 export async function runNotifyPass(now: Date = new Date()) {
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    console.log('[notify] RESEND_API_KEY or EMAIL_FROM not set; skipping notify pass')
+    return { reminders: 0, recaps: 0, adminAlerts: 0 }
+  }
+
   const [reminders, recaps, adminAlerts] = [
     await runReminderPass(now).catch((err) => { console.error('[notify] reminders failed:', err); return 0 }),
     await runRecapPass(now).catch((err) => { console.error('[notify] recaps failed:', err); return 0 }),
@@ -73,7 +78,8 @@ async function runReminderPass(now: Date): Promise<number> {
   let sent = 0
   for (const player of players) {
     const myPicks = await getUserPicksForWeek(player.id, season, week)
-    const wantsPick3 = needsPick3Reminder(myPicks.length, weekGames, now)
+    const pickedGameIds = new Set(myPicks.map((p) => p.gameId))
+    const wantsPick3 = needsPick3Reminder(myPicks.length, weekGames, now, pickedGameIds)
 
     let wantsSurvivor = false
     let survivorPickable = 0
@@ -98,12 +104,27 @@ async function runReminderPass(now: Date): Promise<number> {
 
     if (!wantsPick3 && !wantsSurvivor) continue
 
-    // Claim per-pool keys, then send one combined email covering both. Isolated per
-    // player: a thrown error (network failure, missing SESSION_SECRET, etc.) must not
-    // abort the rest of the batch, and must release this player's claims so a future
-    // tick can retry instead of being permanently blocked by the unique index.
+    // Compose the email FIRST, then claim per-pool keys immediately before sending.
+    // Isolated per player: a thrown error (network failure, missing SESSION_SECRET,
+    // etc.) must not abort the rest of the batch, and must release this player's
+    // claims so a future tick can retry instead of being permanently blocked by the
+    // unique index. Keeping the claim window as close to the send as possible means a
+    // hard function kill mid-pass is far more likely to strike before the claim (safe
+    // retry next tick) than between claim and send (which would strand it).
     const claimed: string[] = []
     try {
+      const unsub = unsubscribeUrl(player.id)
+      const availablePickable = pickableGames(weekGames, now).filter((g) => !pickedGameIds.has(g.id))
+      const nextKickoff = availablePickable[0]?.kickoff ?? null
+      const content = reminderEmail({
+        displayName: player.displayName,
+        window,
+        week,
+        pick3: wantsPick3 && nextKickoff ? { pickCount: myPicks.length, nextKickoff } : null,
+        survivor: wantsSurvivor ? { remainingPickable: survivorPickable } : null,
+        unsubscribeUrl: unsub,
+      })
+
       if (wantsPick3) {
         const key = `reminder:pick3:${window}:${season}:w${week}:u${player.id}`
         if (await claimKey('reminder', key, player.id)) claimed.push(key)
@@ -114,16 +135,6 @@ async function runReminderPass(now: Date): Promise<number> {
       }
       if (claimed.length === 0) continue // every needed pool already sent this window
 
-      const unsub = unsubscribeUrl(player.id)
-      const nextKickoff = pickableGames(weekGames, now)[0]?.kickoff ?? null
-      const content = reminderEmail({
-        displayName: player.displayName,
-        window,
-        week,
-        pick3: wantsPick3 && nextKickoff ? { pickCount: myPicks.length, nextKickoff } : null,
-        survivor: wantsSurvivor ? { remainingPickable: survivorPickable } : null,
-        unsubscribeUrl: unsub,
-      })
       const result = await sendEmail({
         to: player.email,
         subject: content.subject,
@@ -177,13 +188,15 @@ async function runRecapPass(now: Date): Promise<number> {
       const key = `recap:${season}:w${week}:u${player.id}`
       const claimed: string[] = []
 
-      // Isolated per player: a thrown error — including from the claim itself — must
-      // not abort the rest of the batch, and must release this player's claim (if
-      // taken) so a future tick can retry.
+      // Gather data and compose the email FIRST, then claim immediately before
+      // sending. Isolated per player: a thrown error — including from the claim
+      // itself — must not abort the rest of the batch, and must release this
+      // player's claim (if taken) so a future tick can retry. Keeping the claim
+      // window as close to the send as possible means a hard function kill mid-pass
+      // is far more likely to strike before the claim (safe retry next tick) than
+      // between claim and send (which would strand it and permanently suppress the
+      // recap).
       try {
-        if (!(await claimKey('recap', key, player.id))) continue
-        claimed.push(key)
-
         const myPicks = await getUserPicksForWeek(player.id, season, week)
         const results = myPicks.map((p) => p.result as PickResult)
         const { points, parlay } = weeklyPoints(results)
@@ -217,6 +230,10 @@ async function runRecapPass(now: Date): Promise<number> {
           survivorChampions: champions,
           unsubscribeUrl: unsub,
         })
+
+        if (!(await claimKey('recap', key, player.id))) continue
+        claimed.push(key)
+
         const result = await sendEmail({
           to: player.email,
           subject: content.subject,

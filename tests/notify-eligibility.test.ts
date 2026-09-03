@@ -48,6 +48,21 @@ describe('needsPick3Reminder', () => {
   it('does not remind when nothing is pickable', () => {
     expect(needsPick3Reminder(0, [game({ kickoff: past })], now)).toBe(false)
   })
+
+  it('does not remind when the only pickable game is already picked by them', () => {
+    const g = { ...game(), id: 1 }
+    expect(needsPick3Reminder(2, [g], now, new Set([1]))).toBe(false)
+  })
+
+  it('reminds when a pickable, unpicked game remains', () => {
+    const g = { ...game(), id: 1 }
+    expect(needsPick3Reminder(2, [g], now, new Set([2]))).toBe(true)
+  })
+
+  it('preserves old behavior when pickedGameIds is omitted', () => {
+    const g = { ...game(), id: 1 }
+    expect(needsPick3Reminder(2, [g], now)).toBe(true)
+  })
 })
 
 describe('needsSurvivorReminder', () => {
