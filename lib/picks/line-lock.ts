@@ -1,7 +1,7 @@
 const ET = 'America/New_York'
 const LOCK_HOUR_ET = 13 // 1:00 PM
 
-interface EtParts {
+export interface EtParts {
   year: number
   month: number
   day: number
@@ -11,7 +11,7 @@ interface EtParts {
 }
 
 /** The instant's wall-clock reading in US Eastern. */
-function etParts(d: Date): EtParts {
+export function etParts(d: Date): EtParts {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: ET,
     year: 'numeric', month: 'numeric', day: 'numeric',
