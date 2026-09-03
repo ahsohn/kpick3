@@ -11,6 +11,8 @@ export const users = pgTable('users', {
   // Salted scrypt hash ("salt:hash" hex). Only set for the super admin; everyone else
   // signs in with email alone.
   pinHash: text('pin_hash'),
+  // Player opted out of reminder/recap emails (admin alerts ignore this).
+  emailOptOut: boolean('email_opt_out').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -105,8 +107,22 @@ export const survivorPicks = pgTable('survivor_picks', {
   bySeasonWeek: index('survivor_picks_season_week_idx').on(t.season, t.week),
 }))
 
+// Sent-log for outbound email. The unique dedupe key is the idempotency gate for the
+// hourly cron: claim the key (insert) before sending; a conflict means already sent.
+// Rows are facts about sends — nothing here is derivable state that can drift.
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  kind: text('kind').notNull(),            // 'reminder' | 'recap' | 'needs_review'
+  dedupeKey: text('dedupe_key').notNull(),
+  userId: integer('user_id').references(() => users.id), // null for admin alerts
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  byDedupe: uniqueIndex('notifications_dedupe_uq').on(t.dedupeKey),
+}))
+
 export type User = typeof users.$inferSelect
 export type Game = typeof games.$inferSelect
 export type Pick = typeof picks.$inferSelect
 export type SurvivorEntry = typeof survivorEntries.$inferSelect
 export type SurvivorPick = typeof survivorPicks.$inferSelect
+export type Notification = typeof notifications.$inferSelect

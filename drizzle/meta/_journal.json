@@ -15,6 +15,13 @@
       "when": 1784339878454,
       "tag": "0001_thick_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788399742749,
+      "tag": "0002_volatile_boomerang",
+      "breakpoints": true
     }
   ]
 }
