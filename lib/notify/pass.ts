@@ -94,41 +94,49 @@ async function runReminderPass(now: Date): Promise<number> {
 
     if (!wantsPick3 && !wantsSurvivor) continue
 
-    // Claim per-pool keys, then send one combined email covering both.
+    // Claim per-pool keys, then send one combined email covering both. Isolated per
+    // player: a thrown error (network failure, missing SESSION_SECRET, etc.) must not
+    // abort the rest of the batch, and must release this player's claims so a future
+    // tick can retry instead of being permanently blocked by the unique index.
     const claimed: string[] = []
-    if (wantsPick3) {
-      const key = `reminder:pick3:${window}:${season}:w${week}:u${player.id}`
-      if (await claimKey('reminder', key, player.id)) claimed.push(key)
-    }
-    if (wantsSurvivor) {
-      const key = `reminder:survivor:${window}:${season}:w${week}:u${player.id}`
-      if (await claimKey('reminder', key, player.id)) claimed.push(key)
-    }
-    if (claimed.length === 0) continue // every needed pool already sent this window
+    try {
+      if (wantsPick3) {
+        const key = `reminder:pick3:${window}:${season}:w${week}:u${player.id}`
+        if (await claimKey('reminder', key, player.id)) claimed.push(key)
+      }
+      if (wantsSurvivor) {
+        const key = `reminder:survivor:${window}:${season}:w${week}:u${player.id}`
+        if (await claimKey('reminder', key, player.id)) claimed.push(key)
+      }
+      if (claimed.length === 0) continue // every needed pool already sent this window
 
-    const unsub = unsubscribeUrl(player.id)
-    const nextKickoff = pickableGames(weekGames, now)[0]?.kickoff ?? null
-    const content = reminderEmail({
-      displayName: player.displayName,
-      window,
-      week,
-      pick3: wantsPick3 && nextKickoff ? { pickCount: myPicks.length, nextKickoff } : null,
-      survivor: wantsSurvivor ? { remainingPickable: survivorPickable } : null,
-      unsubscribeUrl: unsub,
-    })
-    const result = await sendEmail({
-      to: player.email,
-      subject: content.subject,
-      html: content.html,
-      text: content.text,
-      headers: { 'List-Unsubscribe': `<${unsub}>` },
-    })
-    if (!result.sent) {
+      const unsub = unsubscribeUrl(player.id)
+      const nextKickoff = pickableGames(weekGames, now)[0]?.kickoff ?? null
+      const content = reminderEmail({
+        displayName: player.displayName,
+        window,
+        week,
+        pick3: wantsPick3 && nextKickoff ? { pickCount: myPicks.length, nextKickoff } : null,
+        survivor: wantsSurvivor ? { remainingPickable: survivorPickable } : null,
+        unsubscribeUrl: unsub,
+      })
+      const result = await sendEmail({
+        to: player.email,
+        subject: content.subject,
+        html: content.html,
+        text: content.text,
+        headers: { 'List-Unsubscribe': `<${unsub}>` },
+      })
+      if (!result.sent) {
+        await releaseKeys(claimed)
+        console.error(`[notify] reminder to ${player.email} failed: ${result.reason}`)
+        continue
+      }
+      sent++
+    } catch (err) {
       await releaseKeys(claimed)
-      console.error(`[notify] reminder to ${player.email} failed: ${result.reason}`)
-      continue
+      console.error(`[notify] reminder to ${player.email} threw:`, err)
     }
-    sent++
   }
   return sent
 }
