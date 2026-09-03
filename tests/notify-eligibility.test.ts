@@ -81,6 +81,8 @@ describe('weekFullyGraded', () => {
   it('is false with an ungraded or flagged game', () => {
     expect(weekFullyGraded([graded, { ...graded, gradedAt: null }])).toBe(false)
     expect(weekFullyGraded([graded, { ...graded, needsReview: true, gradedAt: null }])).toBe(false)
+    // Graded but flagged should also fail (needsReview in isolation)
+    expect(weekFullyGraded([{ ...graded, needsReview: true }])).toBe(false)
   })
 
   it('tolerates canceled games (graded as void) but requires a real finished game', () => {
