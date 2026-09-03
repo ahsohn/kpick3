@@ -7,6 +7,7 @@ import {
   renamePlayer,
   resolveFlaggedGame,
   runSyncNow,
+  toggleEmailOptOut,
   unenrollSurvivorPlayer,
   voidGamePicks,
   type AdminResult,
@@ -17,6 +18,7 @@ interface UserRow {
   email: string
   displayName: string
   isAdmin: boolean
+  emailOptOut: boolean
 }
 
 interface FlaggedGame {
@@ -195,6 +197,7 @@ function UsersPanel({ users }: { users: UserRow[] }) {
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Name</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Email</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Role</th>
+              <th className="px-3 py-2 font-semibold uppercase tracking-wider">Emails</th>
             </tr>
           </thead>
           <tbody>
@@ -211,6 +214,7 @@ function UsersPanel({ users }: { users: UserRow[] }) {
 function PlayerRow({ user }: { user: UserRow }) {
   const [editing, setEditing] = useState(false)
   const [state, action, pending] = useActionState(renamePlayer, {})
+  const [emailState, emailAction, emailPending] = useActionState(toggleEmailOptOut, {})
   return (
     <tr className="border-b border-line last:border-b-0">
       <td className="px-3 py-2 font-semibold">
@@ -262,6 +266,24 @@ function PlayerRow({ user }: { user: UserRow }) {
       </td>
       <td className="px-3 py-2 text-muted">{user.email}</td>
       <td className="px-3 py-2">{user.isAdmin ? <span className="font-bold text-primary">Admin</span> : 'Player'}</td>
+      <td className="px-3 py-2">
+        <form action={emailAction} className="inline">
+          <input type="hidden" name="userId" value={user.id} />
+          <button
+            type="submit"
+            disabled={emailPending}
+            title="Toggle reminder/recap emails for this player"
+            className={`cursor-pointer rounded border px-2 py-0.5 text-xs font-bold uppercase disabled:opacity-50 ${
+              user.emailOptOut
+                ? 'border-line text-muted hover:border-primary'
+                : 'border-success text-success'
+            }`}
+          >
+            {user.emailOptOut ? 'Off' : 'On'}
+          </button>
+        </form>
+        <Feedback state={emailState} />
+      </td>
     </tr>
   )
 }
