@@ -175,11 +175,15 @@ async function runRecapPass(now: Date): Promise<number> {
 
     for (const player of players) {
       const key = `recap:${season}:w${week}:u${player.id}`
-      if (!(await claimKey('recap', key, player.id))) continue
+      const claimed: string[] = []
 
-      // Isolated per player: a thrown error must not abort the rest of the batch, and
-      // must release this player's claim so a future tick can retry.
+      // Isolated per player: a thrown error — including from the claim itself — must
+      // not abort the rest of the batch, and must release this player's claim (if
+      // taken) so a future tick can retry.
       try {
+        if (!(await claimKey('recap', key, player.id))) continue
+        claimed.push(key)
+
         const myPicks = await getUserPicksForWeek(player.id, season, week)
         const results = myPicks.map((p) => p.result as PickResult)
         const { points, parlay } = weeklyPoints(results)
@@ -221,13 +225,13 @@ async function runRecapPass(now: Date): Promise<number> {
           headers: { 'List-Unsubscribe': `<${unsub}>` },
         })
         if (!result.sent) {
-          await releaseKeys([key])
+          await releaseKeys(claimed)
           console.error(`[notify] recap to ${player.email} failed: ${result.reason}`)
           continue
         }
         sent++
       } catch (err) {
-        await releaseKeys([key])
+        await releaseKeys(claimed)
         console.error(`[notify] recap to ${player.email} threw:`, err)
       }
     }

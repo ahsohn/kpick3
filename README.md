@@ -125,7 +125,7 @@ Authorization: Bearer <CRON_SECRET>
 
 Manual trigger: same URL with the header (or `?secret=<CRON_SECRET>`), or the
 **Run sync now** button in `/admin`. Returns
-`{ ok, synced, gradedGames, flagged, voided }`.
+`{ ok, synced, gradedGames, flagged, voided, notified }`.
 
 Pick deadlines do **not** depend on the cron (kickoff is checked at submission time);
 the cron keeps lines fresh, pulls scores, and grades finished games.
