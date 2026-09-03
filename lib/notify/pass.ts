@@ -5,19 +5,23 @@ import {
   getCurrentSeason,
   getCurrentWeek,
   getGamesForWeek,
+  getStandings,
   getUserPicksForWeek,
 } from '@/lib/picks/queries'
 import {
+  getSurvivorSeasonData,
   getSurvivorStatusForUser,
   getUsedTeams,
   getUserSurvivorPickForWeek,
   isEnrolled,
 } from '@/lib/survivor/queries'
+import { weeklyPoints, type PickResult } from '@/lib/picks/grading'
+import { formatSpread } from '@/lib/format'
 import { sendEmail } from '@/lib/email/send'
 import { signUnsubscribeToken } from '@/lib/email/unsubscribe'
 import { reminderWindow } from './windows'
-import { needsPick3Reminder, needsSurvivorReminder, pickableGames } from './eligibility'
-import { reminderEmail, SITE_URL } from './emails'
+import { needsPick3Reminder, needsSurvivorReminder, pickableGames, weekFullyGraded } from './eligibility'
+import { reminderEmail, recapEmail, SITE_URL } from './emails'
 
 /**
  * Runs after every sync pass. Each sub-pass is independently fault-isolated and every
@@ -141,8 +145,94 @@ async function runReminderPass(now: Date): Promise<number> {
   return sent
 }
 
-async function runRecapPass(_now: Date): Promise<number> {
-  return 0 // implemented in the next task
+/**
+ * Recaps target the current AND previous week: the sync's auto-detected week rolls
+ * forward around Tuesday — exactly when the finished week's recap comes due — and the
+ * two-week bound keeps a mid-season deploy from backfilling the whole past season.
+ */
+async function runRecapPass(now: Date): Promise<number> {
+  const season = await getCurrentSeason()
+  if (season === null) return 0
+  const currentWeek = await getCurrentWeek(season)
+  const targetWeeks = [...new Set([currentWeek, currentWeek - 1])].filter((w) => w >= 1)
+
+  let sent = 0
+  for (const week of targetWeeks) {
+    const weekGames = await getGamesForWeek(season, week)
+    if (!weekFullyGraded(weekGames)) continue
+
+    const players = await db.select().from(users).where(eq(users.emailOptOut, false))
+    const standingsRows = await getStandings(season)
+    // viewerId 0 = no viewer: cell visibility doesn't matter here, statuses/champions do.
+    const survivor = await getSurvivorSeasonData(season, 0)
+    const eliminated = survivor.rows
+      .filter((r) => r.status.eliminatedWeek === week)
+      .map((r) => r.displayName)
+    const champions = survivor.champions.over && survivor.champions.decidedWeek === week
+      ? survivor.rows.filter((r) => survivor.champions.championUserIds.includes(r.userId)).map((r) => r.displayName)
+      : []
+    const gameById = new Map(weekGames.map((g) => [g.id, g]))
+
+    for (const player of players) {
+      const key = `recap:${season}:w${week}:u${player.id}`
+      if (!(await claimKey('recap', key, player.id))) continue
+
+      // Isolated per player: a thrown error must not abort the rest of the batch, and
+      // must release this player's claim so a future tick can retry.
+      try {
+        const myPicks = await getUserPicksForWeek(player.id, season, week)
+        const results = myPicks.map((p) => p.result as PickResult)
+        const { points, parlay } = weeklyPoints(results)
+        const pickLines = myPicks.map((p) => {
+          const g = gameById.get(p.gameId)
+          const label = g
+            ? p.side === 'home'
+              ? `${g.homeTeamAbbr} ${formatSpread(p.lockedSpread)} vs ${g.awayTeamAbbr}`
+              : `${g.awayTeamAbbr} ${formatSpread(p.lockedSpread)} @ ${g.homeTeamAbbr}`
+            : `game ${p.gameId}`
+          return { label, result: p.result as PickResult }
+        })
+        const topStandings = standingsRows.slice(0, 5).map((s) => ({
+          displayName: s.displayName, points: s.points, isYou: s.userId === player.id,
+        }))
+        const myRank = standingsRows.findIndex((s) => s.userId === player.id)
+        if (myRank >= 5) {
+          const s = standingsRows[myRank]
+          topStandings.push({ displayName: s.displayName, points: s.points, isYou: true })
+        }
+
+        const unsub = unsubscribeUrl(player.id)
+        const content = recapEmail({
+          displayName: player.displayName,
+          week,
+          myPicks: pickLines,
+          weekPoints: points,
+          parlay,
+          standings: topStandings,
+          survivorEliminated: eliminated,
+          survivorChampions: champions,
+          unsubscribeUrl: unsub,
+        })
+        const result = await sendEmail({
+          to: player.email,
+          subject: content.subject,
+          html: content.html,
+          text: content.text,
+          headers: { 'List-Unsubscribe': `<${unsub}>` },
+        })
+        if (!result.sent) {
+          await releaseKeys([key])
+          console.error(`[notify] recap to ${player.email} failed: ${result.reason}`)
+          continue
+        }
+        sent++
+      } catch (err) {
+        await releaseKeys([key])
+        console.error(`[notify] recap to ${player.email} threw:`, err)
+      }
+    }
+  }
+  return sent
 }
 
 async function runAdminAlertPass(): Promise<number> {
