@@ -128,6 +128,24 @@ export function recapEmail(input: RecapEmailInput): EmailContent {
   return { subject, html, text }
 }
 
+export interface TestEmailInput {
+  displayName: string
+  unsubscribeUrl: string
+}
+
+/** Admin-triggered deliverability check; sent regardless of the player's opt-out. */
+export function testEmail(input: TestEmailInput): EmailContent {
+  const subject = 'Test email — kpick3'
+  const line =
+    'This is a test email sent from the kpick3 admin panel. If you can read this, delivery to your inbox works.'
+  const text = `Hey ${input.displayName},\n\n${line}\n\n${SITE_URL}\n\nUnsubscribe: ${input.unsubscribeUrl}\n`
+  const html = layout(
+    `<p>Hey ${esc(input.displayName)},</p><p>${line}</p><p><a href="${SITE_URL}">kpick3.com →</a></p>`,
+    input.unsubscribeUrl
+  )
+  return { subject, html, text }
+}
+
 export interface FlaggedGameLine {
   week: number
   awayTeamAbbr: string

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { needsReviewEmail, recapEmail, reminderEmail } from '../lib/notify/emails'
+import { needsReviewEmail, recapEmail, reminderEmail, testEmail } from '../lib/notify/emails'
 
 const unsubscribeUrl = 'https://kpick3.com/api/unsubscribe?token=tok'
 
@@ -71,5 +71,21 @@ describe('needsReviewEmail', () => {
     expect(subject).toContain('review')
     expect(html).toContain('LAC @ KC')
     expect(html).toContain('/admin')
+  })
+})
+
+describe('testEmail', () => {
+  it('identifies itself as a test and carries the unsubscribe link', () => {
+    const { subject, html, text } = testEmail({ displayName: 'Alex', unsubscribeUrl })
+    expect(subject.toLowerCase()).toContain('test')
+    expect(html).toContain(unsubscribeUrl)
+    expect(text).toContain(unsubscribeUrl)
+    expect(text).toContain('Alex')
+  })
+
+  it('escapes HTML in display names', () => {
+    const { html } = testEmail({ displayName: '<b>x</b>', unsubscribeUrl })
+    expect(html).not.toContain('<b>x</b>')
+    expect(html).toContain('&lt;b&gt;')
   })
 })

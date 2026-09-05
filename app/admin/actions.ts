@@ -7,6 +7,9 @@ import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/session'
 import { runSyncPass, gradeFinishedGames } from '@/lib/espn/sync'
 import { getCurrentSeason } from '@/lib/picks/queries'
+import { sendEmail } from '@/lib/email/send'
+import { signUnsubscribeToken } from '@/lib/email/unsubscribe'
+import { testEmail, SITE_URL } from '@/lib/notify/emails'
 
 export interface AdminResult {
   ok?: boolean
@@ -195,4 +198,34 @@ export async function toggleEmailOptOut(_prev: AdminResult, formData: FormData):
   await db.update(users).set({ emailOptOut: !player.emailOptOut }).where(eq(users.id, userId))
   revalidatePath('/admin')
   return { ok: true, info: `Emails ${player.emailOptOut ? 'on' : 'off'} for ${player.displayName}.` }
+}
+
+/** Sends a deliverability-test email to one player. Deliberately ignores their opt-out. */
+export async function sendTestEmail(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
+  await requireAdmin()
+  const userId = parseInt(String(formData.get('userId')), 10)
+  if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
+
+  const rows = await db.select().from(users).where(eq(users.id, userId))
+  const player = rows[0]
+  if (!player) return { error: 'Player not found.' }
+
+  const secret = process.env.SESSION_SECRET
+  if (!secret) return { error: 'SESSION_SECRET is not set.' }
+  const unsub = `${SITE_URL}/api/unsubscribe?token=${encodeURIComponent(signUnsubscribeToken(userId, secret))}`
+  const content = testEmail({ displayName: player.displayName, unsubscribeUrl: unsub })
+
+  try {
+    const result = await sendEmail({
+      to: player.email,
+      subject: content.subject,
+      html: content.html,
+      text: content.text,
+      headers: { 'List-Unsubscribe': `<${unsub}>` },
+    })
+    if (!result.sent) return { error: `Send failed: ${result.reason}` }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Send failed.' }
+  }
+  return { ok: true, info: `Test email sent to ${player.email}.` }
 }
