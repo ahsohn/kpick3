@@ -42,8 +42,9 @@ retired when DNS cut over to Vercel in July 2026.)
   ESPN is unreachable pages still render from the DB. Live scores never feed grading.
 - **Times** display in US Eastern.
 - **Email**: reminders, weekly recaps and admin alerts go out via Resend, riding the
-  sync cron. Players can opt out via the unsubscribe link in any email (or the admin
-  toggle in `/admin`).
+  sync cron. Players choose which emails they get on `/settings` (linked from the
+  avatar menu); the unsubscribe link in any email turns both off at once, and the
+  admin can flip either preference per player in `/admin`.
 
 ## Scoring
 

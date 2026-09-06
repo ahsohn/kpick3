@@ -23,17 +23,21 @@ export async function GET(req: NextRequest) {
   const userId = verifyUnsubscribeToken(token, secret)
   if (userId === null) return page('That unsubscribe link is not valid.')
 
+  // The emailed link is all-or-nothing; per-type choices live on /settings.
   const resub = req.nextUrl.searchParams.get('resub') === '1'
   const updated = await db
     .update(users)
-    .set({ emailOptOut: !resub })
+    .set({ emailReminders: resub, emailRecaps: resub })
     .where(eq(users.id, userId))
     .returning({ id: users.id })
   if (updated.length === 0) return page('That unsubscribe link is not valid.')
 
   return resub
-    ? page('You are re-subscribed to kpick3 emails.')
-    : page('You are unsubscribed from kpick3 reminder and recap emails.', {
+    ? page('You are re-subscribed to kpick3 emails. Fine-tune which ones on the settings page.', {
+        href: '/settings',
+        label: 'Email settings',
+      })
+    : page('You are unsubscribed from kpick3 reminder and recap emails. You can also pick and choose on the settings page after logging in.', {
         href: `/api/unsubscribe?token=${encodeURIComponent(token)}&resub=1`,
         label: 'Undo — re-subscribe',
       })

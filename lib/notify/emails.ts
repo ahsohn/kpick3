@@ -17,7 +17,7 @@ function layout(bodyHtml: string, unsubscribeUrl: string | null): string {
   return `<div style="font-family:system-ui,sans-serif;max-width:32rem;margin:0 auto;padding:16px;color:#222">
 <h2 style="margin:0 0 12px;font-size:18px"><a href="${SITE_URL}" style="color:#222;text-decoration:none">kpick3</a></h2>
 ${bodyHtml}
-${unsubscribeUrl ? `<p style="margin-top:28px;font-size:12px;color:#888"><a href="${unsubscribeUrl}" style="color:#888">Unsubscribe from these emails</a></p>` : ''}
+${unsubscribeUrl ? `<p style="margin-top:28px;font-size:12px;color:#888"><a href="${unsubscribeUrl}" style="color:#888">Unsubscribe from these emails</a> · <a href="${SITE_URL}/settings" style="color:#888">Email settings</a></p>` : ''}
 </div>`
 }
 

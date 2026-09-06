@@ -42,7 +42,8 @@ export default async function AdminPage() {
           email: u.email,
           displayName: u.displayName,
           isAdmin: u.isAdmin,
-          emailOptOut: u.emailOptOut,
+          emailReminders: u.emailReminders,
+          emailRecaps: u.emailRecaps,
         }))}
         survivorRows={survivorRows}
         survivorSeason={season}

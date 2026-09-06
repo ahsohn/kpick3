@@ -73,7 +73,7 @@ async function runReminderPass(now: Date): Promise<number> {
   const weekGames = await getGamesForWeek(season, week)
   if (pickableGames(weekGames, now).length === 0) return 0
 
-  const players = await db.select().from(users).where(eq(users.emailOptOut, false))
+  const players = await db.select().from(users).where(eq(users.emailReminders, true))
 
   let sent = 0
   for (const player of players) {
@@ -172,7 +172,7 @@ async function runRecapPass(now: Date): Promise<number> {
     const weekGames = await getGamesForWeek(season, week)
     if (!weekFullyGraded(weekGames)) continue
 
-    const players = await db.select().from(users).where(eq(users.emailOptOut, false))
+    const players = await db.select().from(users).where(eq(users.emailRecaps, true))
     const standingsRows = await getStandings(season)
     // viewerId 0 = no viewer: cell visibility doesn't matter here, statuses/champions do.
     const survivor = await getSurvivorSeasonData(season, 0)

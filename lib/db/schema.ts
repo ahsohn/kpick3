@@ -11,8 +11,9 @@ export const users = pgTable('users', {
   // Salted scrypt hash ("salt:hash" hex). Only set for the super admin; everyone else
   // signs in with email alone.
   pinHash: text('pin_hash'),
-  // Player opted out of reminder/recap emails (admin alerts ignore this).
-  emailOptOut: boolean('email_opt_out').notNull().default(false),
+  // Per-type email preferences, self-served on /settings (admin alerts ignore these).
+  emailReminders: boolean('email_reminders').notNull().default(true),
+  emailRecaps: boolean('email_recaps').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

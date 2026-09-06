@@ -22,6 +22,20 @@
       "when": 1788399742749,
       "tag": "0002_volatile_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788666300044,
+      "tag": "0003_opposite_shooting_star",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788666308862,
+      "tag": "0004_brave_professor_monster",
+      "breakpoints": true
     }
   ]
 }

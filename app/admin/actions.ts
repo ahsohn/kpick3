@@ -185,19 +185,28 @@ export async function unenrollSurvivorPlayer(_prev: AdminResult, formData: FormD
   return { ok: true, info: 'Removed from the survivor pool.' }
 }
 
-/** Toggles reminder/recap emails for a player (needs-review alerts to the admin ignore this). */
-export async function toggleEmailOptOut(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
+/** Toggles one of a player's email prefs (admin-side; players self-serve on /settings). */
+export async function toggleEmailPref(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
   await requireAdmin()
   const userId = parseInt(String(formData.get('userId')), 10)
+  const pref = String(formData.get('pref'))
   if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
+  if (pref !== 'reminders' && pref !== 'recaps') return { error: 'Bad preference.' }
 
   const rows = await db.select().from(users).where(eq(users.id, userId))
   const player = rows[0]
   if (!player) return { error: 'Player not found.' }
 
-  await db.update(users).set({ emailOptOut: !player.emailOptOut }).where(eq(users.id, userId))
+  const next = pref === 'reminders' ? !player.emailReminders : !player.emailRecaps
+  await db
+    .update(users)
+    .set(pref === 'reminders' ? { emailReminders: next } : { emailRecaps: next })
+    .where(eq(users.id, userId))
   revalidatePath('/admin')
-  return { ok: true, info: `Emails ${player.emailOptOut ? 'on' : 'off'} for ${player.displayName}.` }
+  return {
+    ok: true,
+    info: `${pref === 'reminders' ? 'Reminders' : 'Recaps'} ${next ? 'on' : 'off'} for ${player.displayName}.`,
+  }
 }
 
 /** Sends a deliverability-test email to one player. Deliberately ignores their opt-out. */

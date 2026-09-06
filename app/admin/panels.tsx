@@ -8,7 +8,7 @@ import {
   resolveFlaggedGame,
   runSyncNow,
   sendTestEmail,
-  toggleEmailOptOut,
+  toggleEmailPref,
   unenrollSurvivorPlayer,
   voidGamePicks,
   type AdminResult,
@@ -19,7 +19,8 @@ interface UserRow {
   email: string
   displayName: string
   isAdmin: boolean
-  emailOptOut: boolean
+  emailReminders: boolean
+  emailRecaps: boolean
 }
 
 interface FlaggedGame {
@@ -215,7 +216,7 @@ function UsersPanel({ users }: { users: UserRow[] }) {
 function PlayerRow({ user }: { user: UserRow }) {
   const [editing, setEditing] = useState(false)
   const [state, action, pending] = useActionState(renamePlayer, {})
-  const [emailState, emailAction, emailPending] = useActionState(toggleEmailOptOut, {})
+  const [emailState, emailAction, emailPending] = useActionState(toggleEmailPref, {})
   const [testState, testAction, testPending] = useActionState(sendTestEmail, {})
   return (
     <tr className="border-b border-line last:border-b-0">
@@ -272,17 +273,34 @@ function PlayerRow({ user }: { user: UserRow }) {
         <span className="flex items-center gap-2">
           <form action={emailAction} className="inline">
             <input type="hidden" name="userId" value={user.id} />
+            <input type="hidden" name="pref" value="reminders" />
             <button
               type="submit"
               disabled={emailPending}
-              title="Toggle reminder/recap emails for this player"
+              title="Toggle pick-reminder emails for this player"
               className={`cursor-pointer rounded border px-2 py-0.5 text-xs font-bold uppercase disabled:opacity-50 ${
-                user.emailOptOut
-                  ? 'border-line text-muted hover:border-primary'
-                  : 'border-success text-success'
+                user.emailReminders
+                  ? 'border-success text-success'
+                  : 'border-line text-muted hover:border-primary'
               }`}
             >
-              {user.emailOptOut ? 'Off' : 'On'}
+              Rem
+            </button>
+          </form>
+          <form action={emailAction} className="inline">
+            <input type="hidden" name="userId" value={user.id} />
+            <input type="hidden" name="pref" value="recaps" />
+            <button
+              type="submit"
+              disabled={emailPending}
+              title="Toggle weekly-recap emails for this player"
+              className={`cursor-pointer rounded border px-2 py-0.5 text-xs font-bold uppercase disabled:opacity-50 ${
+                user.emailRecaps
+                  ? 'border-success text-success'
+                  : 'border-line text-muted hover:border-primary'
+              }`}
+            >
+              Recap
             </button>
           </form>
           <form action={testAction} className="inline">
