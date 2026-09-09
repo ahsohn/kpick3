@@ -14,6 +14,9 @@ export const users = pgTable('users', {
   // Per-type email preferences, self-served on /settings (admin alerts ignore these).
   emailReminders: boolean('email_reminders').notNull().default(true),
   emailRecaps: boolean('email_recaps').notNull().default(true),
+  // Stamped on every successful /login; null until the player's first sign-in after
+  // this column shipped. Surfaces in the /admin players list.
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

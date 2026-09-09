@@ -44,6 +44,8 @@ export default async function AdminPage() {
           isAdmin: u.isAdmin,
           emailReminders: u.emailReminders,
           emailRecaps: u.emailRecaps,
+          // Formatted server-side so the client table never renders in a viewer's local zone.
+          lastLogin: u.lastLoginAt ? formatKickoff(u.lastLoginAt) : null,
         }))}
         survivorRows={survivorRows}
         survivorSeason={season}

@@ -36,6 +36,13 @@
       "when": 1788666308862,
       "tag": "0004_brave_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788984968975,
+      "tag": "0005_loose_miss_america",
+      "breakpoints": true
     }
   ]
 }
