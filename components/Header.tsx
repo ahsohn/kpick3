@@ -93,7 +93,7 @@ export function Header({
             href="/settings"
             className="block w-full rounded-lg px-2 py-1.5 text-left text-[13px] font-semibold text-muted hover:bg-surface-3 hover:text-ink"
           >
-            Email settings
+            Settings
           </Link>
           <form action={logout}>
             <button className="w-full cursor-pointer rounded-lg px-2 py-1.5 text-left text-[13px] font-semibold text-muted hover:bg-surface-3 hover:text-ink">

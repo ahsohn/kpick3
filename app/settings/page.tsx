@@ -2,6 +2,7 @@ import { requireUser } from '@/lib/auth/session'
 import { Shell } from '@/components/Shell'
 import { getCurrentSeason, getCurrentWeek } from '@/lib/picks/queries'
 import { PrefsForm } from './prefs-form'
+import { ProfileForm } from './profile-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,19 @@ export default async function SettingsPage() {
 
   return (
     <Shell user={user} week={week}>
-      <div className="mx-auto max-w-2xl px-7 pb-10 pt-6 max-lg:px-4">
+      <div className="mx-auto flex max-w-2xl flex-col gap-5 px-7 pb-10 pt-6 max-lg:px-4">
+        <section className="rounded-xl border border-line bg-surface p-5">
+          <h2 className="ff-display mb-1 text-2xl text-primary">Profile</h2>
+          <p className="mb-4 text-sm text-muted">
+            Your name and the email you sign in with.
+          </p>
+          <ProfileForm
+            key={`${user.displayName}|${user.email}`}
+            displayName={user.displayName}
+            email={user.email}
+            isAdmin={user.isAdmin}
+          />
+        </section>
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="ff-display mb-1 text-2xl text-primary">Email Settings</h2>
           <p className="mb-4 text-sm text-muted">

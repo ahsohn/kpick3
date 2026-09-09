@@ -45,6 +45,10 @@ retired when DNS cut over to Vercel in July 2026.)
   sync cron. Players choose which emails they get on `/settings` (linked from the
   avatar menu); the unsubscribe link in any email turns both off at once, and the
   admin can flip either preference per player in `/admin`.
+- **Profile**: players change their own display name and sign-in email on `/settings`.
+  An email change re-issues the session cookie on that device and signs out any
+  others. If the super admin changes their email, update `ADMIN_EMAIL` to match
+  before the next `npm run seed`, or the seed will create a second admin account.
 
 ## Scoring
 
