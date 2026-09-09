@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { games, users, picks, survivorEntries, survivorPicks } from '@/lib/db/schema'
+import { games, users, picks, survivorEntries, survivorPicks, notifications } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/session'
@@ -62,6 +62,45 @@ export async function renamePlayer(_prev: AdminResult, formData: FormData): Prom
   revalidatePath('/standings')
   revalidatePath('/survivor')
   return { ok: true, info: `Renamed to ${displayName}.` }
+}
+
+/**
+ * Permanently removes a player along with every pick and survivor entry they made.
+ * Standings recompute from what's left. Admins can't be removed here (demote via the
+ * DB first), and you can't remove yourself. Notification sent-log rows are kept for
+ * dedupe but detached from the user.
+ */
+export async function removePlayer(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
+  const admin = await requireAdmin()
+  const userId = parseInt(String(formData.get('userId')), 10)
+  if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
+  if (userId === admin.id) return { error: "You can't remove yourself." }
+
+  const rows = await db.select().from(users).where(eq(users.id, userId))
+  const player = rows[0]
+  if (!player) return { error: 'Player not found.' }
+  if (player.isAdmin) return { error: 'Admins can\'t be removed from here.' }
+
+  let pickCount = 0
+  let survivorCount = 0
+  await db.transaction(async (tx) => {
+    await tx.update(notifications).set({ userId: null }).where(eq(notifications.userId, userId))
+    survivorCount = (await tx.delete(survivorPicks).where(eq(survivorPicks.userId, userId)).returning({ id: survivorPicks.id })).length
+    await tx.delete(survivorEntries).where(eq(survivorEntries.userId, userId))
+    pickCount = (await tx.delete(picks).where(eq(picks.userId, userId)).returning({ id: picks.id })).length
+    await tx.delete(users).where(eq(users.id, userId))
+  })
+
+  revalidatePath('/admin')
+  revalidatePath('/')
+  revalidatePath('/all-picks')
+  revalidatePath('/standings')
+  revalidatePath('/survivor')
+  revalidatePath('/survivor/board')
+  return {
+    ok: true,
+    info: `Removed ${player.displayName} (${pickCount} picks, ${survivorCount} survivor picks deleted).`,
+  }
 }
 
 export async function runSyncNow(): Promise<AdminResult> {

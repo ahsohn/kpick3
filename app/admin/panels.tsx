@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from 'react'
 import {
   addUser,
   enrollSurvivorPlayer,
+  removePlayer,
   renamePlayer,
   resolveFlaggedGame,
   runSyncNow,
@@ -23,6 +24,10 @@ interface UserRow {
   emailRecaps: boolean
   /** Pre-formatted ET timestamp of their last page load, or null if they've never visited. */
   lastSeen: string | null
+  /** The signed-in admin's own row — never removable. */
+  isSelf: boolean
+  pickCount: number
+  survivorPickCount: number
 }
 
 interface FlaggedGame {
@@ -195,7 +200,7 @@ function UsersPanel({ users }: { users: UserRow[] }) {
       </form>
       <Feedback state={state} />
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[560px] border-collapse text-sm">
+        <table className="w-full min-w-[680px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-line text-left text-muted">
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Name</th>
@@ -203,6 +208,7 @@ function UsersPanel({ users }: { users: UserRow[] }) {
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Role</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Last seen</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Emails</th>
+              <th className="px-3 py-2 font-semibold uppercase tracking-wider"></th>
             </tr>
           </thead>
           <tbody>
@@ -322,7 +328,63 @@ function PlayerRow({ user }: { user: UserRow }) {
         <Feedback state={emailState} />
         <Feedback state={testState} />
       </td>
+      <td className="px-3 py-2 text-right">
+        {!user.isAdmin && !user.isSelf && <RemovePlayerButton user={user} />}
+      </td>
     </tr>
+  )
+}
+
+/** Two-step remove: the first click reveals what will be deleted; the second commits. */
+function RemovePlayerButton({ user }: { user: UserRow }) {
+  const [confirming, setConfirming] = useState(false)
+  const [state, action, pending] = useActionState(removePlayer, {})
+  if (!confirming) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          title="Remove this player and all their picks"
+          className="cursor-pointer rounded border border-line px-2 py-0.5 text-xs font-bold uppercase text-muted hover:border-danger hover:text-danger"
+        >
+          Remove
+        </button>
+        <Feedback state={state} />
+      </>
+    )
+  }
+  const what = [
+    user.pickCount > 0 && `${user.pickCount} pick${user.pickCount === 1 ? '' : 's'}`,
+    user.survivorPickCount > 0 &&
+      `${user.survivorPickCount} survivor pick${user.survivorPickCount === 1 ? '' : 's'}`,
+  ].filter(Boolean)
+  return (
+    <form action={action} className="flex flex-col items-end gap-1.5">
+      <input type="hidden" name="userId" value={user.id} />
+      <span className="whitespace-nowrap text-xs text-danger">
+        Delete {user.displayName}
+        {what.length > 0 ? ` and their ${what.join(' + ')}` : ''}? This can&rsquo;t be undone.
+      </span>
+      <span className="flex gap-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="cursor-pointer rounded-lg bg-danger px-3 py-1.5 text-xs font-bold uppercase text-white disabled:opacity-50"
+        >
+          {pending ? 'Removing…' : 'Yes, remove'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          disabled={pending}
+          className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-xs font-bold uppercase text-muted hover:text-ink"
+        >
+          Cancel
+        </button>
+      </span>
+      <Feedback state={state} />
+    </form>
   )
 }
 
@@ -341,7 +403,7 @@ function SurvivorPanel({ rows, season }: { rows: SurvivorAdminRow[]; season: num
         already past. Unenrolling is only possible while they have no picks.
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] border-collapse text-sm">
+        <table className="w-full min-w-[680px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-line text-left text-muted">
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Name</th>
