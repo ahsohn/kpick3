@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { signSession, verifySession } from '@/lib/auth/cookie'
 import { hashPin, verifyPin } from '@/lib/auth/pin'
+import { shouldStampSeen } from '@/lib/auth/session'
 
 describe('session cookie', () => {
   it('round-trips an email', () => {
@@ -32,5 +33,18 @@ describe('admin PIN', () => {
   })
   it('rejects malformed stored values', () => {
     expect(verifyPin('4821', 'not-a-hash')).toBe(false)
+  })
+})
+
+describe('last-seen throttle', () => {
+  const now = new Date('2026-09-13T17:00:00Z')
+  it('stamps when never seen', () => {
+    expect(shouldStampSeen(null, now)).toBe(true)
+  })
+  it('skips within the 15-minute window', () => {
+    expect(shouldStampSeen(new Date(now.getTime() - 14 * 60 * 1000), now)).toBe(false)
+  })
+  it('stamps once the window has elapsed', () => {
+    expect(shouldStampSeen(new Date(now.getTime() - 15 * 60 * 1000), now)).toBe(true)
   })
 })
