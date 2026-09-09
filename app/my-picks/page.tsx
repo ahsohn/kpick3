@@ -137,10 +137,17 @@ export default async function MyPicksPage() {
                     {week === currentWeek && slotsOpen > 0 && (
                       <Link
                         href="/"
-                        className="block rounded-[10px] border border-dashed border-strong p-3 text-center text-xs text-muted transition-colors hover:border-accent hover:text-ink"
+                        className="flex flex-col items-center gap-2 rounded-[10px] border border-dashed border-strong p-3.5 text-center text-xs text-muted transition-colors hover:border-accent hover:text-ink"
                       >
-                        Pick {slotsOpen === 3 ? '3' : `${slotsOpen} more`} still open — each pick grades
-                        on the game&rsquo;s locked line · <span className="font-bold text-accent-text">Make Picks →</span>
+                        <span>
+                          {slotsOpen === 3
+                            ? 'All 3 picks still open'
+                            : `${slotsOpen} pick${slotsOpen === 1 ? '' : 's'} still open`}{' '}
+                          — each grades on the game&rsquo;s locked line
+                        </span>
+                        <span className="rounded-[7px] bg-accent px-3.5 py-1.5 text-[11px] font-extrabold tracking-[.06em] text-white">
+                          MAKE PICKS →
+                        </span>
                       </Link>
                     )}
                   </div>

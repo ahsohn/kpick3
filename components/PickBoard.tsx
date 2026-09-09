@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { removePick, submitPicks } from '@/app/actions/picks'
 import { formatSpread } from '@/lib/format'
@@ -38,6 +38,16 @@ export function PickBoard({
   const [sheetExpanded, setSheetExpanded] = useState(false)
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
   const touchStartY = useRef<number | null>(null)
+
+  // Keep the page from scrolling behind the expanded sheet on mobile.
+  useEffect(() => {
+    if (!sheetExpanded) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [sheetExpanded])
 
   /** Swipe up on the mobile sheet expands it; swipe down collapses it. */
   function onSheetTouchStart(e: React.TouchEvent) {
@@ -428,7 +438,7 @@ export function PickBoard({
         />
       )}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 rounded-t-2xl border-t border-strong bg-surface-2 px-4 pb-6 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,.5)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 touch-none rounded-t-2xl border-t border-strong bg-surface-2 px-4 pb-6 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,.5)] lg:hidden"
         onTouchStart={onSheetTouchStart}
         onTouchEnd={onSheetTouchEnd}
       >
