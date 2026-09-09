@@ -49,6 +49,9 @@ retired when DNS cut over to Vercel in July 2026.)
   An email change re-issues the session cookie on that device and signs out any
   others. If the super admin changes their email, update `ADMIN_EMAIL` to match
   before the next `npm run seed`, or the seed will create a second admin account.
+- **Last seen**: `/admin` shows when each player last loaded a page while signed in,
+  refreshed at most every 15 minutes (a session cookie lasts all season, so a login
+  timestamp alone would go stale).
 
 ## Scoring
 

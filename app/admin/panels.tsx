@@ -21,8 +21,8 @@ interface UserRow {
   isAdmin: boolean
   emailReminders: boolean
   emailRecaps: boolean
-  /** Pre-formatted ET timestamp, or null if they've never signed in. */
-  lastLogin: string | null
+  /** Pre-formatted ET timestamp of their last page load, or null if they've never visited. */
+  lastSeen: string | null
 }
 
 interface FlaggedGame {
@@ -201,7 +201,7 @@ function UsersPanel({ users }: { users: UserRow[] }) {
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Name</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Email</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Role</th>
-              <th className="px-3 py-2 font-semibold uppercase tracking-wider">Last login</th>
+              <th className="px-3 py-2 font-semibold uppercase tracking-wider">Last seen</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Emails</th>
             </tr>
           </thead>
@@ -272,7 +272,7 @@ function PlayerRow({ user }: { user: UserRow }) {
       </td>
       <td className="px-3 py-2 text-muted">{user.email}</td>
       <td className="px-3 py-2">{user.isAdmin ? <span className="font-bold text-primary">Admin</span> : 'Player'}</td>
-      <td className="whitespace-nowrap px-3 py-2 text-muted">{user.lastLogin ?? 'Never'}</td>
+      <td className="whitespace-nowrap px-3 py-2 text-muted">{user.lastSeen ?? 'Never'}</td>
       <td className="px-3 py-2">
         <span className="flex items-center gap-2">
           <form action={emailAction} className="inline">

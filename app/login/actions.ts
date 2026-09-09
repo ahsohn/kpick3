@@ -29,7 +29,6 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     if (!verifyPin(pin, user.pinHash)) return { needsPin: true, error: 'Wrong PIN.' }
   }
 
-  await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id))
   await setSessionCookie(email)
   redirect('/')
 }
