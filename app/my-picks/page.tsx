@@ -8,6 +8,8 @@ import { weeklyPoints, type PickResult } from '@/lib/picks/grading'
 import { formatKickoff, formatSpread } from '@/lib/format'
 import { isLineLocked, lineLockTime } from '@/lib/picks/line-lock'
 import { ResultBadge } from '@/components/ResultBadge'
+import { RemovePickButton } from '@/components/RemovePickButton'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +17,8 @@ export default async function MyPicksPage() {
   const user = await requireUser()
   const season = await getCurrentSeason()
   const currentWeek = season ? await getCurrentWeek(season) : null
+
+  const now = new Date()
 
   const rows = season
     ? await db
@@ -90,6 +94,9 @@ export default async function MyPicksPage() {
                     {weekRows.map(({ pick, game }) => {
                       const teamName = pick.side === 'home' ? game.homeTeamName : game.awayTeamName
                       const started = game.statusState !== 'pre'
+                      // Mirrors the server rule in removePick: pending + not kicked off + not canceled.
+                      const removable =
+                        pick.result === 'pending' && !started && !game.canceled && game.kickoff > now
                       const score =
                         started && game.homeScore !== null && game.awayScore !== null
                           ? `${game.awayScore}–${game.homeScore}`
@@ -115,15 +122,26 @@ export default async function MyPicksPage() {
                               </div>
                             )}
                           </div>
-                          <ResultBadge result={pick.result as PickResult} />
+                          <div className="flex shrink-0 flex-col items-end gap-2">
+                            <ResultBadge result={pick.result as PickResult} />
+                            {removable && (
+                              <RemovePickButton
+                                gameId={game.id}
+                                label={`${teamName} ${formatSpread(pick.lockedSpread)}`}
+                              />
+                            )}
+                          </div>
                         </div>
                       )
                     })}
                     {week === currentWeek && slotsOpen > 0 && (
-                      <div className="rounded-[10px] border border-dashed border-strong p-3 text-center text-xs text-muted">
+                      <Link
+                        href="/"
+                        className="block rounded-[10px] border border-dashed border-strong p-3 text-center text-xs text-muted transition-colors hover:border-accent hover:text-ink"
+                      >
                         Pick {slotsOpen === 3 ? '3' : `${slotsOpen} more`} still open — each pick grades
-                        on the game&rsquo;s locked line
-                      </div>
+                        on the game&rsquo;s locked line · <span className="font-bold text-accent-text">Make Picks →</span>
+                      </Link>
                     )}
                   </div>
                 </section>
