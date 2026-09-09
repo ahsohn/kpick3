@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { removePick, submitPicks } from '@/app/actions/picks'
 import { formatSpread } from '@/lib/format'
@@ -13,6 +13,8 @@ interface ExistingPick {
 }
 
 const MAX = 3
+/** Minimum vertical travel (px) for a touch to count as a swipe on the mobile sheet. */
+const SWIPE_THRESHOLD = 40
 
 function titleDay(day: string): string {
   return day.charAt(0) + day.slice(1).toLowerCase()
@@ -35,6 +37,21 @@ export function PickBoard({
   const [selected, setSelected] = useState<Map<number, 'home' | 'away'>>(new Map())
   const [sheetExpanded, setSheetExpanded] = useState(false)
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const touchStartY = useRef<number | null>(null)
+
+  /** Swipe up on the mobile sheet expands it; swipe down collapses it. */
+  function onSheetTouchStart(e: React.TouchEvent) {
+    touchStartY.current = e.touches[0]?.clientY ?? null
+  }
+  function onSheetTouchEnd(e: React.TouchEvent) {
+    const start = touchStartY.current
+    touchStartY.current = null
+    const end = e.changedTouches[0]?.clientY
+    if (start === null || end === undefined) return
+    const delta = start - end
+    if (delta > SWIPE_THRESHOLD) setSheetExpanded(true)
+    else if (delta < -SWIPE_THRESHOLD) setSheetExpanded(false)
+  }
 
   const byGame = useMemo(() => new Map(games.map((g) => [g.id, g])), [games])
   const remaining = MAX - existingPicks.length
@@ -410,13 +427,25 @@ export function PickBoard({
           onClick={() => setSheetExpanded(false)}
         />
       )}
-      <div className="fixed inset-x-0 bottom-0 z-40 rounded-t-2xl border-t border-strong bg-surface-2 px-4 pb-6 pt-2.5 shadow-[0_-8px_24px_rgba(0,0,0,.5)] lg:hidden">
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 rounded-t-2xl border-t border-strong bg-surface-2 px-4 pb-6 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,.5)] lg:hidden"
+        onTouchStart={onSheetTouchStart}
+        onTouchEnd={onSheetTouchEnd}
+      >
         <button
           type="button"
           aria-label={sheetExpanded ? 'Collapse pick slip' : 'Expand pick slip'}
           onClick={() => setSheetExpanded((v) => !v)}
-          className="mx-auto mb-2.5 block h-1 w-9 cursor-pointer rounded-sm bg-strong"
-        />
+          className="mx-auto mb-2 flex w-full cursor-pointer flex-col items-center gap-1.5 py-1"
+        >
+          <span className="block h-1.5 w-12 rounded-full bg-strong" />
+          <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-[.1em] text-muted">
+            <span className={sheetExpanded ? '' : 'sheet-hint-arrow'} aria-hidden="true">
+              {sheetExpanded ? '▼' : '▲'}
+            </span>
+            {sheetExpanded ? 'SWIPE DOWN TO HIDE' : 'SWIPE UP TO SEE YOUR PICK SLIP'}
+          </span>
+        </button>
         {sheetExpanded ? (
           <>
             <div className="mb-3 flex items-baseline justify-between">

@@ -67,3 +67,18 @@ body {
 .live-dot {
   animation: live-pulse 1.5s ease-in-out infinite;
 }
+
+/* Mobile pick-slip sheet: nudges the "swipe up" arrow so the gesture is discoverable */
+@keyframes sheet-hint-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.sheet-hint-arrow {
+  display: inline-block;
+  animation: sheet-hint-bob 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-hint-arrow { animation: none; }
+}
