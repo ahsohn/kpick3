@@ -21,6 +21,8 @@ interface UserRow {
   isAdmin: boolean
   emailReminders: boolean
   emailRecaps: boolean
+  /** Pre-formatted ET timestamp, or null if they've never signed in. */
+  lastLogin: string | null
 }
 
 interface FlaggedGame {
@@ -193,12 +195,13 @@ function UsersPanel({ users }: { users: UserRow[] }) {
       </form>
       <Feedback state={state} />
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[420px] border-collapse text-sm">
+        <table className="w-full min-w-[560px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-line text-left text-muted">
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Name</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Email</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Role</th>
+              <th className="px-3 py-2 font-semibold uppercase tracking-wider">Last login</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Emails</th>
             </tr>
           </thead>
@@ -269,6 +272,7 @@ function PlayerRow({ user }: { user: UserRow }) {
       </td>
       <td className="px-3 py-2 text-muted">{user.email}</td>
       <td className="px-3 py-2">{user.isAdmin ? <span className="font-bold text-primary">Admin</span> : 'Player'}</td>
+      <td className="whitespace-nowrap px-3 py-2 text-muted">{user.lastLogin ?? 'Never'}</td>
       <td className="px-3 py-2">
         <span className="flex items-center gap-2">
           <form action={emailAction} className="inline">
@@ -337,7 +341,7 @@ function SurvivorPanel({ rows, season }: { rows: SurvivorAdminRow[]; season: num
         already past. Unenrolling is only possible while they have no picks.
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] border-collapse text-sm">
+        <table className="w-full min-w-[560px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-line text-left text-muted">
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Name</th>

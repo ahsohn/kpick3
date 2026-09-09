@@ -10,6 +10,12 @@ import { getCurrentSeason } from '@/lib/picks/queries'
 import { sendEmail } from '@/lib/email/send'
 import { signUnsubscribeToken } from '@/lib/email/unsubscribe'
 import { testEmail, SITE_URL } from '@/lib/notify/emails'
+import {
+  normalizeDisplayName,
+  normalizeEmail,
+  validateDisplayName,
+  validateEmail,
+} from '@/lib/auth/profile'
 
 export interface AdminResult {
   ok?: boolean
@@ -19,10 +25,12 @@ export interface AdminResult {
 
 export async function addUser(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
   await requireAdmin()
-  const email = String(formData.get('email') ?? '').trim().toLowerCase()
-  const displayName = String(formData.get('displayName') ?? '').trim()
-  if (!email || !email.includes('@')) return { error: 'Enter a valid email.' }
-  if (!displayName) return { error: 'Enter a display name.' }
+  const email = normalizeEmail(formData.get('email'))
+  const displayName = normalizeDisplayName(formData.get('displayName'))
+  const emailError = validateEmail(email)
+  if (emailError) return { error: emailError }
+  const nameError = validateDisplayName(displayName)
+  if (nameError) return { error: nameError }
 
   const existing = await db.select().from(users).where(eq(users.email, email))
   if (existing.length > 0) return { error: 'That email is already registered.' }
@@ -36,9 +44,10 @@ export async function addUser(_prev: AdminResult, formData: FormData): Promise<A
 export async function renamePlayer(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
   await requireAdmin()
   const userId = parseInt(String(formData.get('userId')), 10)
-  const displayName = String(formData.get('displayName') ?? '').trim()
+  const displayName = normalizeDisplayName(formData.get('displayName'))
   if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
-  if (!displayName) return { error: 'Enter a display name.' }
+  const nameError = validateDisplayName(displayName)
+  if (nameError) return { error: nameError }
 
   const updated = await db
     .update(users)
