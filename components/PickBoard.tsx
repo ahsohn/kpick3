@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { removePick, submitPicks } from '@/app/actions/picks'
 import { formatSpread } from '@/lib/format'
 import { lockedLineNote } from '@/lib/picks/line-move'
+import type { PickResult } from '@/lib/picks/grading'
 import type { BoardGame } from './board-types'
 import { useBottomSheet } from './use-bottom-sheet'
 
@@ -14,6 +15,22 @@ interface ExistingPick {
   lockedSpread: number
   /** Line at submission; null for picks made before it was recorded. */
   pickedSpread: number | null
+}
+
+/** Someone's pick on a game that has kicked off (the server only reveals those). */
+interface Picker {
+  gameId: number
+  side: 'home' | 'away'
+  displayName: string
+  result: PickResult
+}
+
+const RESULT_COLOR: Record<PickResult, string> = {
+  pending: 'text-muted',
+  win: 'text-green',
+  loss: 'text-accent',
+  push: 'text-amber',
+  void: 'text-muted',
 }
 
 const MAX = 3
@@ -30,9 +47,11 @@ function gameStarted(game: BoardGame, now: number): boolean {
 export function PickBoard({
   games,
   existingPicks,
+  pickers = [],
 }: {
   games: BoardGame[]
   existingPicks: ExistingPick[]
+  pickers?: Picker[]
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -180,12 +199,21 @@ export function PickBoard({
     const abbr = side === 'away' ? game.awayTeamAbbr : game.homeTeamAbbr
     const name = side === 'away' ? game.awayTeamName : game.homeTeamName
     const score = side === 'away' ? game.awayScore : game.homeScore
+    // Only revealed once the game kicks off, so this doubles as the live/final gate.
+    const sidePickers = pickers.filter((p) => p.gameId === game.id && p.side === side)
     return (
       <div className="flex items-center gap-2.5">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] bg-tile text-[10px] font-extrabold">
           {abbr}
         </span>
-        <span className="text-sm font-semibold">{name}</span>
+        <span className="flex flex-col">
+          <span className="text-sm font-semibold">{name}</span>
+          {sidePickers.length > 0 && (
+            <span className={`text-[11px] leading-tight ${RESULT_COLOR[sidePickers[0].result]}`}>
+              {sidePickers.map((p) => p.displayName).join(', ')}
+            </span>
+          )}
+        </span>
         {started && score !== null && (
           <span className="ml-auto text-[15px] font-extrabold tabular-nums">{score}</span>
         )}

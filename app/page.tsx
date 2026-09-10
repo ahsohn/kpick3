@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth/session'
-import { getGamesForWeek, getUserPicksForWeek } from '@/lib/picks/queries'
+import { getGamesForWeek, getUserPicksForWeek, getVisibleWeekPicks } from '@/lib/picks/queries'
 import { resolveWeek } from '@/lib/picks/page-data'
 import { getLiveOverlays, withLive } from '@/lib/espn/live'
 import { Shell } from '@/components/Shell'
@@ -29,9 +29,10 @@ export default async function MakePicksPage({
     )
   }
 
-  const [games, myPicks, overlays] = await Promise.all([
+  const [games, myPicks, { visible: revealedPicks }, overlays] = await Promise.all([
     getGamesForWeek(ctx.season, ctx.week),
     getUserPicksForWeek(user.id, ctx.season, ctx.week),
+    getVisibleWeekPicks(ctx.season, ctx.week),
     getLiveOverlays(),
   ])
 
@@ -50,6 +51,12 @@ export default async function MakePicksPage({
           side: p.side as 'home' | 'away',
           lockedSpread: p.lockedSpread,
           pickedSpread: p.pickedSpread,
+        }))}
+        pickers={revealedPicks.map((p) => ({
+          gameId: p.gameId,
+          side: p.side,
+          displayName: p.displayName,
+          result: p.result,
         }))}
       />
     </Shell>
