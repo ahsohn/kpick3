@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { removeSurvivorPick, submitSurvivorPick } from '@/app/actions/survivor'
 import type { BoardGame } from './board-types'
+import { useBottomSheet } from './use-bottom-sheet'
 
 export interface MySurvivorPick {
   gameId: number
@@ -15,9 +16,6 @@ export interface UsedTeam {
   abbr: string
   week: number
 }
-
-/** Minimum vertical travel (px) for a touch to count as a swipe on the mobile sheet. */
-const SWIPE_THRESHOLD = 40
 
 function titleDay(day: string): string {
   return day.charAt(0) + day.slice(1).toLowerCase()
@@ -49,8 +47,14 @@ export function SurvivorPickPanel({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [selected, setSelected] = useState<{ gameId: number; side: 'home' | 'away' } | null>(null)
-  const [sheetExpanded, setSheetExpanded] = useState(false)
-  const touchStartY = useRef<number | null>(null)
+  const {
+    expanded: sheetExpanded,
+    setExpanded: setSheetExpanded,
+    rootRef: sheetRootRef,
+    sheetRef,
+    bodyRef: sheetBodyRef,
+    sheetHandlers,
+  } = useBottomSheet()
 
   // Keep the page from scrolling behind the expanded sheet on mobile.
   useEffect(() => {
@@ -62,19 +66,6 @@ export function SurvivorPickPanel({
     }
   }, [sheetExpanded])
 
-  /** Swipe up on the mobile sheet expands it; swipe down collapses it. */
-  function onSheetTouchStart(e: React.TouchEvent) {
-    touchStartY.current = e.touches[0]?.clientY ?? null
-  }
-  function onSheetTouchEnd(e: React.TouchEvent) {
-    const start = touchStartY.current
-    touchStartY.current = null
-    const end = e.changedTouches[0]?.clientY
-    if (start === null || end === undefined) return
-    const delta = start - end
-    if (delta > SWIPE_THRESHOLD) setSheetExpanded(true)
-    else if (delta < -SWIPE_THRESHOLD) setSheetExpanded(false)
-  }
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
 
   const usedByAbbr = new Map(usedTeams.map((t) => [t.abbr, t.week]))
@@ -252,7 +243,7 @@ export function SurvivorPickPanel({
   }
 
   const slipHeader = (
-    <div className="mb-3.5 flex items-baseline justify-between">
+    <div className="flex items-baseline justify-between">
       <span className="text-sm font-extrabold tracking-[.08em]">SURVIVOR SLIP</span>
       <span className="text-xs font-bold text-muted">
         <span className="text-green">{aliveCount}</span>/{entryCount} alive
@@ -339,7 +330,7 @@ export function SurvivorPickPanel({
         {/* desktop rail */}
         <div className="hidden h-fit flex-col gap-3.5 lg:sticky lg:top-4 lg:flex">
           <div className="rounded-[14px] border border-control bg-surface p-[18px]">
-            {slipHeader}
+            <div className="mb-3.5">{slipHeader}</div>
             <SlipBody />
           </div>
           {teamsUsedCard}
@@ -348,55 +339,64 @@ export function SurvivorPickPanel({
         {/* mobile: teams used above the sheet */}
         <div className="lg:hidden">{teamsUsedCard}</div>
 
-        {/* mobile bottom sheet */}
-        {sheetExpanded && (
+        {/* mobile bottom sheet: always fully rendered, translated down to its peek row when collapsed */}
+        <div ref={sheetRootRef} className="sheet-root contents lg:hidden">
           <div
-            className="fixed inset-0 z-30 bg-[rgba(8,10,15,.4)] backdrop-blur-[1.5px] lg:hidden"
+            className={`sheet-backdrop fixed inset-0 z-30 bg-[rgba(8,10,15,.4)] backdrop-blur-[1.5px] ${
+              sheetExpanded ? '' : 'pointer-events-none'
+            }`}
             onClick={() => setSheetExpanded(false)}
           />
-        )}
-        <div
-          className="fixed inset-x-0 bottom-0 z-40 touch-none rounded-t-2xl border-t border-strong bg-surface-2 px-4 pb-6 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,.5)] lg:hidden"
-          onTouchStart={onSheetTouchStart}
-          onTouchEnd={onSheetTouchEnd}
-        >
-          <button
-            type="button"
-            aria-label={sheetExpanded ? 'Collapse survivor slip' : 'Expand survivor slip'}
-            onClick={() => setSheetExpanded((v) => !v)}
-            className="mx-auto mb-2 flex w-full cursor-pointer flex-col items-center gap-1.5 py-1"
+          <div
+            ref={sheetRef}
+            className="sheet-panel fixed inset-x-0 bottom-0 z-40 touch-none rounded-t-2xl border-t border-strong bg-surface-2 px-4 pb-6 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,.5)]"
+            {...sheetHandlers}
           >
-            <span className="block h-1.5 w-12 rounded-full bg-strong" />
-            <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-[.1em] text-muted">
-              <span className={sheetExpanded ? '' : 'sheet-hint-arrow'} aria-hidden="true">
-                {sheetExpanded ? '▼' : '▲'}
-              </span>
-              {sheetExpanded ? 'SWIPE DOWN TO HIDE' : 'SWIPE UP TO SEE YOUR SURVIVOR SLIP'}
-            </span>
-          </button>
-          {sheetExpanded ? (
-            <>
-              {slipHeader}
-              <SlipBody />
-            </>
-          ) : (
-            <div className="flex items-center justify-between gap-3">
-              <button type="button" className="cursor-pointer text-left" onClick={() => setSheetExpanded(true)}>
-                <div className="text-[13px] font-extrabold tracking-[.06em]">SURVIVOR SLIP</div>
-                <div className="text-[11px] text-muted">
-                  {entry ? entry.title : `No pick yet for Week ${week}`}
-                </div>
-              </button>
+            <div>
               <button
                 type="button"
-                onClick={submit}
-                disabled={pending || !selected}
-                className="cursor-pointer rounded-[9px] bg-amber px-5 py-3 text-[13px] font-extrabold tracking-[.05em] text-amber-ink disabled:opacity-50"
+                aria-label={sheetExpanded ? 'Collapse survivor slip' : 'Expand survivor slip'}
+                onClick={() => setSheetExpanded((v) => !v)}
+                className="mx-auto mb-2 flex w-full cursor-pointer flex-col items-center gap-1.5 py-1"
               >
-                {pending ? '…' : 'SUBMIT'}
+                <span className="block h-1.5 w-12 rounded-full bg-strong" />
+                <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-[.1em] text-muted">
+                  <span className={sheetExpanded ? '' : 'sheet-hint-arrow'} aria-hidden="true">
+                    {sheetExpanded ? '▼' : '▲'}
+                  </span>
+                  {sheetExpanded ? 'SWIPE DOWN TO HIDE' : 'SWIPE UP TO SEE YOUR SURVIVOR SLIP'}
+                </span>
               </button>
+              {/* peek row and slip header share one grid cell and crossfade as the sheet moves */}
+              <div className="grid">
+                <div
+                  className="sheet-fade-out col-start-1 row-start-1 flex items-center justify-between gap-3"
+                  inert={sheetExpanded}
+                >
+                  <button type="button" className="cursor-pointer text-left" onClick={() => setSheetExpanded(true)}>
+                    <div className="text-[13px] font-extrabold tracking-[.06em]">SURVIVOR SLIP</div>
+                    <div className="text-[11px] text-muted">
+                      {entry ? entry.title : `No pick yet for Week ${week}`}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submit}
+                    disabled={pending || !selected}
+                    className="cursor-pointer rounded-[9px] bg-amber px-5 py-3 text-[13px] font-extrabold tracking-[.05em] text-amber-ink disabled:opacity-50"
+                  >
+                    {pending ? '…' : 'SUBMIT'}
+                  </button>
+                </div>
+                <div className="sheet-fade-in col-start-1 row-start-1 self-center" inert={!sheetExpanded}>
+                  {slipHeader}
+                </div>
+              </div>
             </div>
-          )}
+            <div ref={sheetBodyRef} className="mt-4" inert={!sheetExpanded}>
+              <SlipBody />
+            </div>
+          </div>
         </div>
       </div>
     </>

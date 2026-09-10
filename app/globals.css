@@ -82,3 +82,44 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .sheet-hint-arrow { animation: none; }
 }
+
+/* Mobile pick-slip sheet: drag-to-reveal panel driven by use-bottom-sheet.
+   --sheet-p runs from 0 (collapsed) to 1 (expanded) and follows the finger. */
+.sheet-root {
+  --sheet-p: 0;
+  --sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sheet-panel {
+  /* Off-screen until the hook measures and positions it. */
+  transform: translateY(100%);
+  will-change: transform;
+  transition: transform 0.34s var(--sheet-ease);
+}
+.sheet-fade-in {
+  opacity: var(--sheet-p);
+  transition: opacity 0.34s var(--sheet-ease);
+}
+.sheet-fade-out {
+  opacity: calc(1 - var(--sheet-p));
+  transition: opacity 0.34s var(--sheet-ease);
+}
+.sheet-backdrop {
+  opacity: var(--sheet-p);
+  visibility: hidden;
+  transition: opacity 0.34s var(--sheet-ease), visibility 0.34s;
+}
+.sheet-root[data-raised] .sheet-backdrop {
+  visibility: visible;
+}
+.sheet-root[data-dragging] :is(.sheet-panel, .sheet-fade-in, .sheet-fade-out, .sheet-backdrop) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel,
+  .sheet-fade-in,
+  .sheet-fade-out,
+  .sheet-backdrop {
+    transition-duration: 0s;
+  }
+}

@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { removePick, submitPicks } from '@/app/actions/picks'
 import { formatSpread } from '@/lib/format'
 import type { BoardGame } from './board-types'
+import { useBottomSheet } from './use-bottom-sheet'
 
 interface ExistingPick {
   gameId: number
@@ -13,8 +14,6 @@ interface ExistingPick {
 }
 
 const MAX = 3
-/** Minimum vertical travel (px) for a touch to count as a swipe on the mobile sheet. */
-const SWIPE_THRESHOLD = 40
 
 function titleDay(day: string): string {
   return day.charAt(0) + day.slice(1).toLowerCase()
@@ -35,9 +34,15 @@ export function PickBoard({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [selected, setSelected] = useState<Map<number, 'home' | 'away'>>(new Map())
-  const [sheetExpanded, setSheetExpanded] = useState(false)
+  const {
+    expanded: sheetExpanded,
+    setExpanded: setSheetExpanded,
+    rootRef: sheetRootRef,
+    sheetRef,
+    bodyRef: sheetBodyRef,
+    sheetHandlers,
+  } = useBottomSheet()
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
-  const touchStartY = useRef<number | null>(null)
 
   // Keep the page from scrolling behind the expanded sheet on mobile.
   useEffect(() => {
@@ -48,20 +53,6 @@ export function PickBoard({
       document.body.style.overflow = previous
     }
   }, [sheetExpanded])
-
-  /** Swipe up on the mobile sheet expands it; swipe down collapses it. */
-  function onSheetTouchStart(e: React.TouchEvent) {
-    touchStartY.current = e.touches[0]?.clientY ?? null
-  }
-  function onSheetTouchEnd(e: React.TouchEvent) {
-    const start = touchStartY.current
-    touchStartY.current = null
-    const end = e.changedTouches[0]?.clientY
-    if (start === null || end === undefined) return
-    const delta = start - end
-    if (delta > SWIPE_THRESHOLD) setSheetExpanded(true)
-    else if (delta < -SWIPE_THRESHOLD) setSheetExpanded(false)
-  }
 
   const byGame = useMemo(() => new Map(games.map((g) => [g.id, g])), [games])
   const remaining = MAX - existingPicks.length
@@ -430,62 +421,72 @@ export function PickBoard({
         <SlipBody />
       </aside>
 
-      {/* mobile bottom sheet */}
-      {sheetExpanded && (
+      {/* mobile bottom sheet: always fully rendered, translated down to its peek row when collapsed */}
+      <div ref={sheetRootRef} className="sheet-root contents lg:hidden">
         <div
-          className="fixed inset-0 z-30 bg-[rgba(8,10,15,.4)] backdrop-blur-[1.5px] lg:hidden"
+          className={`sheet-backdrop fixed inset-0 z-30 bg-[rgba(8,10,15,.4)] backdrop-blur-[1.5px] ${
+            sheetExpanded ? '' : 'pointer-events-none'
+          }`}
           onClick={() => setSheetExpanded(false)}
         />
-      )}
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 touch-none rounded-t-2xl border-t border-strong bg-surface-2 px-4 pb-6 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,.5)] lg:hidden"
-        onTouchStart={onSheetTouchStart}
-        onTouchEnd={onSheetTouchEnd}
-      >
-        <button
-          type="button"
-          aria-label={sheetExpanded ? 'Collapse pick slip' : 'Expand pick slip'}
-          onClick={() => setSheetExpanded((v) => !v)}
-          className="mx-auto mb-2 flex w-full cursor-pointer flex-col items-center gap-1.5 py-1"
+        <div
+          ref={sheetRef}
+          className="sheet-panel fixed inset-x-0 bottom-0 z-40 touch-none rounded-t-2xl border-t border-strong bg-surface-2 px-4 pb-6 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,.5)]"
+          {...sheetHandlers}
         >
-          <span className="block h-1.5 w-12 rounded-full bg-strong" />
-          <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-[.1em] text-muted">
-            <span className={sheetExpanded ? '' : 'sheet-hint-arrow'} aria-hidden="true">
-              {sheetExpanded ? '▼' : '▲'}
-            </span>
-            {sheetExpanded ? 'SWIPE DOWN TO HIDE' : 'SWIPE UP TO SEE YOUR PICK SLIP'}
-          </span>
-        </button>
-        {sheetExpanded ? (
-          <>
-            <div className="mb-3 flex items-baseline justify-between">
-              <span className="text-sm font-extrabold tracking-[.08em]">PICK SLIP</span>
-              <span className="text-xs font-bold text-muted">
-                <span className="text-green">{lockedEntries.length}</span>/3 locked
+          <div>
+            <button
+              type="button"
+              aria-label={sheetExpanded ? 'Collapse pick slip' : 'Expand pick slip'}
+              onClick={() => setSheetExpanded((v) => !v)}
+              className="mx-auto mb-2 flex w-full cursor-pointer flex-col items-center gap-1.5 py-1"
+            >
+              <span className="block h-1.5 w-12 rounded-full bg-strong" />
+              <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-[.1em] text-muted">
+                <span className={sheetExpanded ? '' : 'sheet-hint-arrow'} aria-hidden="true">
+                  {sheetExpanded ? '▼' : '▲'}
+                </span>
+                {sheetExpanded ? 'SWIPE DOWN TO HIDE' : 'SWIPE UP TO SEE YOUR PICK SLIP'}
               </span>
-            </div>
-            <SlipBody />
-          </>
-        ) : (
-          <div className="flex items-center justify-between gap-3">
-            <button type="button" className="cursor-pointer text-left" onClick={() => setSheetExpanded(true)}>
-              <div className="text-[13px] font-extrabold tracking-[.06em]">
-                PICK SLIP · <span className="text-green">{lockedEntries.length}</span>/3
-              </div>
-              <div className="text-[11px] text-muted">{peekSummary}</div>
             </button>
-            {remaining > 0 && (
-              <button
-                type="button"
-                onClick={submit}
-                disabled={pending || selected.size === 0}
-                className="cursor-pointer rounded-[9px] bg-accent px-5 py-3 text-[13px] font-extrabold tracking-[.05em] text-white disabled:opacity-50"
+            {/* peek row and slip header share one grid cell and crossfade as the sheet moves */}
+            <div className="grid">
+              <div
+                className="sheet-fade-out col-start-1 row-start-1 flex items-center justify-between gap-3"
+                inert={sheetExpanded}
               >
-                {pending ? '…' : `SUBMIT ${selected.size}`}
-              </button>
-            )}
+                <button type="button" className="cursor-pointer text-left" onClick={() => setSheetExpanded(true)}>
+                  <div className="text-[13px] font-extrabold tracking-[.06em]">
+                    PICK SLIP · <span className="text-green">{lockedEntries.length}</span>/3
+                  </div>
+                  <div className="text-[11px] text-muted">{peekSummary}</div>
+                </button>
+                {remaining > 0 && (
+                  <button
+                    type="button"
+                    onClick={submit}
+                    disabled={pending || selected.size === 0}
+                    className="cursor-pointer rounded-[9px] bg-accent px-5 py-3 text-[13px] font-extrabold tracking-[.05em] text-white disabled:opacity-50"
+                  >
+                    {pending ? '…' : `SUBMIT ${selected.size}`}
+                  </button>
+                )}
+              </div>
+              <div
+                className="sheet-fade-in col-start-1 row-start-1 flex items-baseline justify-between self-center"
+                inert={!sheetExpanded}
+              >
+                <span className="text-sm font-extrabold tracking-[.08em]">PICK SLIP</span>
+                <span className="text-xs font-bold text-muted">
+                  <span className="text-green">{lockedEntries.length}</span>/3 locked
+                </span>
+              </div>
+            </div>
           </div>
-        )}
+          <div ref={sheetBodyRef} className="mt-4" inert={!sheetExpanded}>
+            <SlipBody />
+          </div>
+        </div>
       </div>
     </div>
   )
