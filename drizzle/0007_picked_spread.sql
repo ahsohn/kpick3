@@ -1,0 +1,1 @@
+ALTER TABLE "picks" ADD COLUMN "picked_spread" real;

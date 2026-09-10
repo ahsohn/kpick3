@@ -50,6 +50,13 @@
       "when": 1788986030271,
       "tag": "0006_last_seen_rename",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789008753436,
+      "tag": "0007_picked_spread",
+      "breakpoints": true
     }
   ]
 }

@@ -49,6 +49,7 @@ export default async function MakePicksPage({
           gameId: p.gameId,
           side: p.side as 'home' | 'away',
           lockedSpread: p.lockedSpread,
+          pickedSpread: p.pickedSpread,
         }))}
       />
     </Shell>

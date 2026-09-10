@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { removePick, submitPicks } from '@/app/actions/picks'
 import { formatSpread } from '@/lib/format'
+import { lockedLineNote } from '@/lib/picks/line-move'
 import type { BoardGame } from './board-types'
 import { useBottomSheet } from './use-bottom-sheet'
 
@@ -11,6 +12,8 @@ interface ExistingPick {
   gameId: number
   side: 'home' | 'away'
   lockedSpread: number
+  /** Line at submission; null for picks made before it was recorded. */
+  pickedSpread: number | null
 }
 
 const MAX = 3
@@ -203,15 +206,15 @@ export function PickBoard({
       if (!game) return null
       const teamName = p.side === 'home' ? game.homeTeamName : game.awayTeamName
       const opp = p.side === 'home' ? `vs ${game.awayTeamName}` : `at ${game.homeTeamName}`
+      const open = !gameStarted(game, now) && !game.canceled
       return {
         gameId: p.gameId,
         title: `${teamName} ${formatSpread(p.lockedSpread)}`,
         detail: `${opp} · ${titleDay(game.kickoffDay)} ${game.kickoffTime}`,
-        removable: !gameStarted(game, now) && !game.canceled,
-        lineWarning:
-          !game.lineLocked && !gameStarted(game, now) && !game.canceled
-            ? `Line locks ${game.lineLocksLabel}`
-            : null,
+        removable: open,
+        lineWarning: open && !game.lineLocked ? `Line locks ${game.lineLocksLabel}` : null,
+        // Once locked (and until kickoff) show picked-at vs locked so they can decide to keep it.
+        lockedNote: open && game.lineLocked ? lockedLineNote(p.pickedSpread, p.lockedSpread) : null,
       }
     })
     .filter((e): e is NonNullable<typeof e> => e !== null)
@@ -245,6 +248,14 @@ export function PickBoard({
               {e.lineWarning && (
                 <div className="mt-0.5 text-[11px] font-semibold text-amber">
                   ⚠ {e.lineWarning} — graded on the locked line, check back before kickoff
+                </div>
+              )}
+              {e.lockedNote && (
+                <div
+                  className={`mt-0.5 text-[11px] font-semibold ${e.lockedNote.moved ? 'text-amber' : 'text-muted'}`}
+                >
+                  {e.lockedNote.moved ? '⚠ ' : ''}
+                  {e.lockedNote.text}
                 </div>
               )}
             </div>

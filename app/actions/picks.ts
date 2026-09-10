@@ -17,7 +17,8 @@ const MAX_PICKS_PER_WEEK = 3
 /**
  * Submits 1–3 picks. All rules are enforced here, server-side: game must exist, have a
  * posted line, and not have kicked off; one pick per game; at most 3 picks per week.
- * The current spread is copied onto each pick — that's the number it's graded on.
+ * The current spread is copied onto each pick — that's the number it's graded on (and
+ * re-stamped by the sync until lock) — and kept separately as the picked-at spread.
  */
 export async function submitPicks(
   input: { gameId: number; side: 'home' | 'away' }[]
@@ -78,6 +79,7 @@ export async function submitPicks(
             week,
             side: p.side,
             lockedSpread: spreadForSide(game.homeSpread!, p.side),
+            pickedSpread: spreadForSide(game.homeSpread!, p.side),
           }
         })
       )

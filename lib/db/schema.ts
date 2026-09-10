@@ -66,6 +66,10 @@ export const picks = pgTable('picks', {
   // Stamped at submission and re-stamped by the sync until the game's line locks, so
   // every pick on a game is graded on the same locked number.
   lockedSpread: real('locked_spread').notNull(),
+  // The line the player actually picked at, stamped once at submission and never
+  // re-stamped, so after lock they can see how far the number moved. Null on picks
+  // made before this column existed.
+  pickedSpread: real('picked_spread'),
   result: text('result').notNull().default('pending'), // pending|win|loss|push|void
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   gradedAt: timestamp('graded_at', { withTimezone: true }),
