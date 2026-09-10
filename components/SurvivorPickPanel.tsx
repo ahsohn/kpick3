@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { removeSurvivorPick, submitSurvivorPick } from '@/app/actions/survivor'
 import type { BoardGame } from './board-types'
 import { useBottomSheet } from './use-bottom-sheet'
+import { formatSpread, spreadForSide } from '@/lib/format'
 
 export interface MySurvivorPick {
   gameId: number
@@ -109,6 +110,8 @@ export function SurvivorPickPanel({
     const isUsed = usedWeek !== undefined && !isMyPick
     const isSelected = selected?.gameId === game.id && selected.side === side
     const disabled = started || game.canceled || isUsed
+    // Informational only — survivor is straight-up, but the line hints at how safe the pick is.
+    const spread = game.homeSpread === null ? null : spreadForSide(game.homeSpread, side)
 
     let look = 'border-control bg-surface-3'
     if (isSelected) look = 'border-amber bg-amber/12'
@@ -130,6 +133,9 @@ export function SurvivorPickPanel({
           {abbr}
         </span>
         <span className={`text-sm ${isSelected || isMyPick ? 'font-bold' : 'font-semibold'}`}>{name}</span>
+        {spread !== null && (
+          <span className="text-[11px] font-semibold tabular-nums text-muted">{formatSpread(spread)}</span>
+        )}
         {isSelected && (
           <span className="ml-auto text-[10px] font-extrabold tracking-[.08em] text-amber">SELECTED</span>
         )}
