@@ -151,6 +151,9 @@ export function PickBoard({
       look = 'border-accent bg-accent/12 text-accent-text font-extrabold cursor-pointer'
     } else if (selectable) {
       look = 'border-control bg-surface-3 font-bold cursor-pointer hover:border-accent'
+    } else if (started) {
+      // Closed line on a live/finished game: not pickable, but keep the number readable.
+      look = 'border-control bg-surface-3 text-ink-2 font-bold'
     } else {
       look = 'border-control bg-surface-3 text-muted font-bold opacity-45'
     }
@@ -398,7 +401,7 @@ export function PickBoard({
                   <TeamLine game={game} side="away" />
                   <TeamLine game={game} side="home" />
                 </div>
-                <div className={`flex flex-col gap-2 ${live ? 'opacity-45' : ''}`}>
+                <div className="flex flex-col gap-2">
                   <Chip game={game} side="away" />
                   <Chip game={game} side="home" />
                 </div>
