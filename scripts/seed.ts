@@ -13,16 +13,16 @@ async function main() {
   const pinHash = hashPin(pin)
   const existing = await db.select().from(users).where(eq(users.email, email))
   if (existing.length > 0) {
-    await db.update(users).set({ isAdmin: true, pinHash }).where(eq(users.email, email))
-    console.log(`Updated existing user ${email} as admin (PIN reset).`)
+    await db.update(users).set({ role: 'super_admin', pinHash }).where(eq(users.email, email))
+    console.log(`Updated existing user ${email} as super admin (PIN reset).`)
   } else {
     await db.insert(users).values({
       email,
       displayName: email.split('@')[0],
-      isAdmin: true,
+      role: 'super_admin',
       pinHash,
     })
-    console.log(`Created admin user ${email}.`)
+    console.log(`Created super admin user ${email}.`)
   }
   process.exit(0)
 }

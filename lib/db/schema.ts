@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { Role } from '@/lib/auth/roles'
 import {
   pgTable, serial, text, integer, boolean, timestamp, real, index, uniqueIndex,
 } from 'drizzle-orm/pg-core'
@@ -7,9 +8,11 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   email: text('email').notNull().unique(),
   displayName: text('display_name').notNull(),
-  isAdmin: boolean('is_admin').notNull().default(false),
+  // 'player' | 'admin' | 'super_admin' — see lib/auth/roles.ts. Admins get the
+  // read-only pick-status view; the super admin (seeded from ADMIN_EMAIL) runs the pool.
+  role: text('role').$type<Role>().notNull().default('player'),
   // Salted scrypt hash ("salt:hash" hex). Only set for the super admin; everyone else
-  // signs in with email alone.
+  // (admins included) signs in with email alone.
   pinHash: text('pin_hash'),
   // Per-type email preferences, self-served on /settings (admin alerts ignore these).
   emailReminders: boolean('email_reminders').notNull().default(true),

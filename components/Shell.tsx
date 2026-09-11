@@ -3,7 +3,10 @@ import type { User } from '@/lib/db/schema'
 import { getSurvivorBannerStatus } from '@/lib/survivor/queries'
 import { getLastSyncTime } from '@/lib/picks/queries'
 import { formatAgo } from '@/lib/format'
+import { getViewAs } from '@/lib/auth/session'
+import { isSuperAdmin } from '@/lib/auth/roles'
 import { Header } from './Header'
+import { ViewAsBar } from './ViewAsBar'
 
 // One missed hourly cron run plus slack — past this the admin sees the stale banner.
 const STALE_SYNC_MS = 75 * 60 * 1000
@@ -12,6 +15,7 @@ const STALE_SYNC_MS = 75 * 60 * 1000
  * Page chrome: the 64px Prime Time header (with pool switcher + contextual tabs) and
  * footer. Pages supply their own content containers. The amber alert dot on the
  * SURVIVOR segment lights up whenever the survivor banner status has something to say.
+ * A real super admin also gets the "view as" strip under the header (see ViewAsBar).
  */
 export async function Shell({
   user,
@@ -22,18 +26,22 @@ export async function Shell({
   week: number | null
   children: React.ReactNode
 }) {
-  const survivorStatus = await getSurvivorBannerStatus(user.id)
-  const lastSync = user.isAdmin ? await getLastSyncTime() : null
+  const [survivorStatus, viewAs, lastSync] = await Promise.all([
+    getSurvivorBannerStatus(user.id),
+    getViewAs(),
+    isSuperAdmin(user.role) ? getLastSyncTime() : Promise.resolve(null),
+  ])
   const syncStale = lastSync !== null && Date.now() - lastSync.getTime() > STALE_SYNC_MS
 
   return (
     <>
       <Header
         displayName={user.displayName}
-        isAdmin={user.isAdmin}
+        role={user.role}
         week={week}
         survivorAlert={survivorStatus !== null}
       />
+      {viewAs && <ViewAsBar viewingAs={viewAs.viewingAs} />}
       {syncStale && (
         <div className="border-b border-amber/40 bg-amber/10 px-4 py-2 text-center text-xs font-semibold text-amber">
           ⚠ Line sync last succeeded {formatAgo(lastSync)} ago — falling back to the most
