@@ -8,6 +8,7 @@ import { weeklyPoints, type PickResult } from '@/lib/picks/grading'
 import { formatKickoff, formatSpread } from '@/lib/format'
 import { isLineLocked, lineLockTime } from '@/lib/picks/line-lock'
 import { ResultBadge } from '@/components/ResultBadge'
+import { liveCover, LIVE_COVER_COLOR, LIVE_COVER_LABEL } from '@/lib/picks/live-cover'
 import { RemovePickButton } from '@/components/RemovePickButton'
 import Link from 'next/link'
 
@@ -101,6 +102,10 @@ export default async function MyPicksPage() {
                         started && game.homeScore !== null && game.awayScore !== null
                           ? `${game.awayScore}–${game.homeScore}`
                           : null
+                      const cover =
+                        pick.result === 'pending' && game.statusState === 'in'
+                          ? liveCover(pick.side as 'home' | 'away', pick.lockedSpread, game.homeScore, game.awayScore)
+                          : null
                       const detail = game.completed
                         ? `${game.awayTeamAbbr} @ ${game.homeTeamAbbr} · Final ${score ?? ''}`
                         : game.statusState === 'in'
@@ -124,6 +129,11 @@ export default async function MyPicksPage() {
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-2">
                             <ResultBadge result={pick.result as PickResult} />
+                            {cover && (
+                              <span className={`text-[10px] font-extrabold tracking-[.08em] ${LIVE_COVER_COLOR[cover]}`}>
+                                {LIVE_COVER_LABEL[cover]}
+                              </span>
+                            )}
                             {removable && (
                               <RemovePickButton
                                 gameId={game.id}

@@ -1,7 +1,8 @@
 import { db } from '@/lib/db'
 import { games, picks, users, type Game, type Pick } from '@/lib/db/schema'
 import { and, asc, desc, eq, max } from 'drizzle-orm'
-import { weeklyPoints, type PickResult } from './grading'
+import type { PickResult } from './grading'
+import { aggregateStandings, type PlayerStandings, type StandingsPickRow } from './standings'
 
 /** Latest season present in the games table (null before the first sync). */
 export async function getCurrentSeason(): Promise<number | null> {
@@ -79,8 +80,8 @@ export interface StandingsRow {
   parlays: number
 }
 
-/** Season standings, computed from graded picks (nothing stored to drift stale). */
-export async function getStandings(season: number): Promise<StandingsRow[]> {
+/** Every pick of the season with the name attached — the raw input for standings. */
+export async function getStandingsRows(season: number): Promise<StandingsPickRow[]> {
   const rows = await db
     .select({
       userId: picks.userId,
@@ -91,35 +92,21 @@ export async function getStandings(season: number): Promise<StandingsRow[]> {
     .from(picks)
     .innerJoin(users, eq(users.id, picks.userId))
     .where(eq(picks.season, season))
+  return rows.map((r) => ({ ...r, result: r.result as PickResult }))
+}
 
-  const byUserWeek = new Map<string, { userId: number; displayName: string; results: PickResult[] }>()
-  for (const r of rows) {
-    const key = `${r.userId}:${r.week}`
-    if (!byUserWeek.has(key)) {
-      byUserWeek.set(key, { userId: r.userId, displayName: r.displayName, results: [] })
-    }
-    byUserWeek.get(key)!.results.push(r.result as PickResult)
-  }
+/** Season + per-week standings, computed from graded picks (nothing stored to drift stale). */
+export async function getPlayerStandings(season: number): Promise<PlayerStandings[]> {
+  return aggregateStandings(await getStandingsRows(season))
+}
 
-  const totals = new Map<number, StandingsRow>()
-  for (const { userId, displayName, results } of byUserWeek.values()) {
-    if (!totals.has(userId)) {
-      totals.set(userId, {
-        userId, displayName, points: 0, wins: 0, losses: 0, pushes: 0, parlays: 0,
-      })
-    }
-    const t = totals.get(userId)!
-    const { points, parlay } = weeklyPoints(results)
-    t.points += points
-    if (parlay) t.parlays++
-    t.wins += results.filter((r) => r === 'win').length
-    t.losses += results.filter((r) => r === 'loss').length
-    t.pushes += results.filter((r) => r === 'push').length
-  }
-
-  return [...totals.values()].sort(
-    (a, b) => b.points - a.points || b.wins - a.wins || a.displayName.localeCompare(b.displayName)
-  )
+/** Flat season standings (used by the weekly recap email). */
+export async function getStandings(season: number): Promise<StandingsRow[]> {
+  return (await getPlayerStandings(season)).map((p) => ({
+    userId: p.userId,
+    displayName: p.displayName,
+    ...p.season,
+  }))
 }
 
 export interface WeekPicksEntry {

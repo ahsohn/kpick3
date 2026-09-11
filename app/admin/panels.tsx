@@ -46,21 +46,32 @@ export interface SurvivorAdminRow {
   eliminatedWeek: number | null
 }
 
+export interface WeekStatusRow {
+  userId: number
+  displayName: string
+  /** Pick 3 picks in for the current week (0–3). */
+  pick3Count: number
+  survivor: 'not-enrolled' | 'eliminated' | 'picked' | 'missing'
+}
+
 export function AdminPanels({
   users,
   flagged,
   survivorRows,
   survivorSeason,
+  weekStatus,
 }: {
   users: UserRow[]
   flagged: FlaggedGame[]
   survivorRows: SurvivorAdminRow[]
   survivorSeason: number | null
+  weekStatus: { week: number | null; rows: WeekStatusRow[] }
 }) {
   return (
     <div className="flex flex-col gap-6">
       <SyncPanel />
       {flagged.length > 0 && <FlaggedPanel flagged={flagged} />}
+      {weekStatus.week !== null && <WeekStatusPanel week={weekStatus.week} rows={weekStatus.rows} />}
       <UsersPanel users={users} />
       <SurvivorPanel rows={survivorRows} season={survivorSeason} />
     </div>
@@ -99,6 +110,70 @@ function SyncPanel() {
         {pending ? 'Syncing…' : 'Run sync now'}
       </button>
       <Feedback state={result} />
+    </Panel>
+  )
+}
+
+/** Who still owes picks this week — the nudge list, incomplete players first. */
+function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }) {
+  const owes = (r: WeekStatusRow) => r.pick3Count < 3 || r.survivor === 'missing'
+  const sorted = [...rows].sort((a, b) => {
+    if (owes(a) !== owes(b)) return owes(a) ? -1 : 1
+    return a.pick3Count - b.pick3Count || a.displayName.localeCompare(b.displayName)
+  })
+  const owing = rows.filter(owes).length
+  const survivorLabel: Record<WeekStatusRow['survivor'], string> = {
+    'not-enrolled': '—',
+    eliminated: 'OUT',
+    picked: 'IN',
+    missing: 'NO PICK',
+  }
+  const survivorColor: Record<WeekStatusRow['survivor'], string> = {
+    'not-enrolled': 'text-muted',
+    eliminated: 'text-muted',
+    picked: 'text-success',
+    missing: 'text-danger',
+  }
+  return (
+    <Panel title={`Week ${week} Pick Status`}>
+      <p className="mb-4 text-sm text-muted">
+        {owing === 0
+          ? 'Everyone is in for the week.'
+          : `${owing} player${owing === 1 ? '' : 's'} still owe${owing === 1 ? 's' : ''} a pick.`}{' '}
+        Survivor shows IN once a pick is in (the team is hidden until kickoff, same as for players).
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-muted">
+              <th className="pb-2 pr-4">Player</th>
+              <th className="pb-2 pr-4">Pick 3</th>
+              <th className="pb-2">Survivor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r) => (
+              <tr key={r.userId} className={`border-t border-line ${owes(r) ? '' : 'opacity-60'}`}>
+                <td className="py-2 pr-4 font-semibold">{r.displayName}</td>
+                <td className="py-2 pr-4">
+                  <span className="mr-2 inline-flex gap-1" aria-hidden>
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        className={`h-2.5 w-2.5 rounded-full ${i < r.pick3Count ? 'bg-success' : 'bg-line'}`}
+                      />
+                    ))}
+                  </span>
+                  <span className={`font-bold tabular-nums ${r.pick3Count < 3 ? 'text-warning' : 'text-success'}`}>
+                    {r.pick3Count}/3
+                  </span>
+                </td>
+                <td className={`py-2 font-bold ${survivorColor[r.survivor]}`}>{survivorLabel[r.survivor]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Panel>
   )
 }

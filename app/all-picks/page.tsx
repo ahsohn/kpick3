@@ -6,6 +6,8 @@ import { Shell } from '@/components/Shell'
 import { WeekSelector } from '@/components/WeekSelector'
 import { formatKickoffDay, formatKickoffTime, formatSpread } from '@/lib/format'
 import type { PickResult } from '@/lib/picks/grading'
+import { TeamLogo } from '@/components/TeamLogo'
+import { liveCover, LIVE_COVER_COLOR, LIVE_COVER_LABEL } from '@/lib/picks/live-cover'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,9 +82,13 @@ export default async function AllPicksPage({
                       </span>
                     )}
                   </div>
-                  <div className="mb-3 text-base font-extrabold">
-                    {game.awayTeamName} @ {game.homeTeamName}
-                    {score && <span className="ml-2 tabular-nums text-ink-2">{score}</span>}
+                  <div className="mb-3 flex items-center gap-2 text-base font-extrabold">
+                    <TeamLogo src={game.awayTeamLogo} abbr={game.awayTeamAbbr} />
+                    <TeamLogo src={game.homeTeamLogo} abbr={game.homeTeamAbbr} />
+                    <span>
+                      {game.awayTeamName} @ {game.homeTeamName}
+                      {score && <span className="ml-2 tabular-nums text-ink-2">{score}</span>}
+                    </span>
                   </div>
 
                   {(['away', 'home'] as const).map((side) => {
@@ -90,7 +96,12 @@ export default async function AllPicksPage({
                     if (sidePicks.length === 0) return null
                     return (
                       <div key={side} className="mb-2 rounded-[10px] bg-surface-3 px-3 py-2.5 last:mb-0">
-                        <div className="mb-2 text-xs font-bold text-ink-2">
+                        <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-ink-2">
+                          <TeamLogo
+                            src={side === 'away' ? game.awayTeamLogo : game.homeTeamLogo}
+                            abbr={side === 'away' ? game.awayTeamAbbr : game.homeTeamAbbr}
+                            small
+                          />
                           {side === 'away' ? game.awayTeamName : game.homeTeamName}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
@@ -101,7 +112,12 @@ export default async function AllPicksPage({
                             >
                               <strong>{p.displayName}</strong>
                               <span className="tabular-nums text-muted">{formatSpread(p.lockedSpread)}</span>
-                              <ChipResult result={p.result} live={!game.completed} />
+                              <ChipResult
+                                result={p.result}
+                                cover={
+                                  live ? liveCover(p.side, p.lockedSpread, game.homeScore, game.awayScore) : null
+                                }
+                              />
                             </span>
                           ))}
                         </div>
@@ -124,9 +140,13 @@ export default async function AllPicksPage({
   )
 }
 
-function ChipResult({ result, live }: { result: PickResult; live: boolean }) {
+function ChipResult({ result, cover }: { result: PickResult; cover: ReturnType<typeof liveCover> }) {
   if (result === 'pending') {
-    return <span className="font-extrabold text-slate">{live ? 'LIVE' : 'PENDING'}</span>
+    // Mid-game: where the pick stands right now against its locked line (not a grade).
+    if (cover) {
+      return <span className={`font-extrabold ${LIVE_COVER_COLOR[cover]}`}>{LIVE_COVER_LABEL[cover]}</span>
+    }
+    return <span className="font-extrabold text-slate">PENDING</span>
   }
   const color = {
     win: 'text-green',

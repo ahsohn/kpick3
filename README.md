@@ -40,6 +40,11 @@ retired when DNS cut over to Vercel in July 2026.)
 - **Live scores** for in-progress games are fetched straight from ESPN at render time
   (cached ~30s, shared across renders) so they're fresher than the last cron tick; if
   ESPN is unreachable pages still render from the DB. Live scores never feed grading.
+- **Standings** show season totals by default; the chip row switches to any single week
+  (players without picks that week sink to the bottom), and a player × week points grid
+  sits below with parlay stars. While a game is live, All Picks and My Picks show where a
+  pick stands against its locked line (COVERING / NOT COVERING / ON THE NUMBER) — display
+  only, grading still waits for the final.
 - **Times** display in US Eastern.
 - **Email**: reminders, weekly recaps and admin alerts go out via Resend, riding the
   sync cron. Players choose which emails they get on `/settings` (linked from the
@@ -52,6 +57,8 @@ retired when DNS cut over to Vercel in July 2026.)
 - **Removing a player**: `/admin` can delete a non-admin player outright, taking all
   their Pick 3 and survivor picks with them (standings recompute from what's left).
   Admins can't be removed from the UI, and you can't remove yourself.
+- **Pick status**: `/admin` lists every player's Pick 3 count and survivor status for the
+  current week, incomplete players first, so the commissioner can nudge before Saturday.
 - **Last seen**: `/admin` shows when each player last loaded a page while signed in,
   refreshed at most every 15 minutes (a session cookie lasts all season, so a login
   timestamp alone would go stale).
