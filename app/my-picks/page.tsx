@@ -7,6 +7,7 @@ import { getCurrentSeason, getCurrentWeek } from '@/lib/picks/queries'
 import { weeklyPoints, type PickResult } from '@/lib/picks/grading'
 import { formatKickoff, formatSpread } from '@/lib/format'
 import { isLineLocked, lineLockTime } from '@/lib/picks/line-lock'
+import { lockedLineNote } from '@/lib/picks/line-move'
 import { ResultBadge } from '@/components/ResultBadge'
 import { liveCover, LIVE_COVER_COLOR, LIVE_COVER_LABEL } from '@/lib/picks/live-cover'
 import { RemovePickButton } from '@/components/RemovePickButton'
@@ -106,6 +107,11 @@ export default async function MyPicksPage() {
                         pick.result === 'pending' && game.statusState === 'in'
                           ? liveCover(pick.side as 'home' | 'away', pick.lockedSpread, game.homeScore, game.awayScore)
                           : null
+                      // Same rule as the pick slip: line locked, game not yet kicked off.
+                      const lockedNote =
+                        removable && isLineLocked(game.kickoff)
+                          ? lockedLineNote(pick.pickedSpread, pick.lockedSpread)
+                          : null
                       const detail = game.completed
                         ? `${game.awayTeamAbbr} @ ${game.homeTeamAbbr} · Final ${score ?? ''}`
                         : game.statusState === 'in'
@@ -124,6 +130,14 @@ export default async function MyPicksPage() {
                             {pick.result === 'pending' && game.statusState === 'pre' && !isLineLocked(game.kickoff) && (
                               <div className="mt-0.5 text-xs font-semibold text-amber">
                                 ⚠ Line locks {formatKickoff(lineLockTime(game.kickoff))} — check back before kickoff in case it moves
+                              </div>
+                            )}
+                            {lockedNote && (
+                              <div
+                                className={`mt-0.5 text-xs font-semibold ${lockedNote.moved ? 'text-amber' : 'text-muted'}`}
+                              >
+                                {lockedNote.moved ? '⚠ ' : ''}
+                                {lockedNote.text}
                               </div>
                             )}
                           </div>
