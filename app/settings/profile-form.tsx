@@ -41,11 +41,11 @@ function Field({
 export function ProfileForm({
   displayName,
   email,
-  isAdmin,
+  isSuperAdmin,
 }: {
   displayName: string
   email: string
-  isAdmin: boolean
+  isSuperAdmin: boolean
 }) {
   const [state, action, pending] = useActionState<SettingsResult, FormData>(updateProfile, {})
   return (
@@ -62,7 +62,7 @@ export function ProfileForm({
         name="email"
         label="Email"
         detail={
-          isAdmin
+          isSuperAdmin
             ? 'Your sign-in and where pool emails go. Changing it also means updating ADMIN_EMAIL before the next seed run.'
             : 'Your sign-in and where pool emails go. Changing it signs out any other devices.'
         }

@@ -23,8 +23,9 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     return { error: 'No account for that email. Ask the commissioner to add you.' }
   }
 
-  // The super admin also has to present a PIN; everyone else is email-only.
-  if (user.isAdmin && user.pinHash) {
+  // The super admin also has to present a PIN; everyone else (admins included) is
+  // email-only.
+  if (user.role === 'super_admin' && user.pinHash) {
     if (!pin) return { needsPin: true, error: 'Admin account — enter your PIN.' }
     if (!verifyPin(pin, user.pinHash)) return { needsPin: true, error: 'Wrong PIN.' }
   }

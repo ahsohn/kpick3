@@ -18,7 +18,14 @@ retired when DNS cut over to Vercel in July 2026.)
 ## How it works
 
 - **Auth is trust-based**: enter a registered email and you're in (no password). The
-  super admin additionally enters a **PIN**. Admin pre-creates players in `/admin`.
+  super admin additionally enters a **PIN**. The super admin pre-creates players in
+  `/admin`.
+- **Roles**: `player` (everyone by default), `admin`, and `super_admin` (the
+  commissioner, seeded from `ADMIN_EMAIL`). The super admin runs the pool — players,
+  sync, survivor enrollment, needs-review — and can grant or revoke the **admin** role
+  from the Players table. An admin only sees the **Week Pick Status** table in `/admin`
+  (with each player's email and last-seen time) so they can help chase stragglers; they
+  can't change anything. Admins sign in with email alone, no PIN.
 - **Games, spreads & scores** sync from ESPN's public NFL API into Postgres via
   `GET /api/cron/sync` (authorized by `CRON_SECRET`). The sync auto-detects the current
   week, keeps lines fresh until each game's line lock, and pins the season year so the
@@ -56,9 +63,16 @@ retired when DNS cut over to Vercel in July 2026.)
   before the next `npm run seed`, or the seed will create a second admin account.
 - **Removing a player**: `/admin` can delete a non-admin player outright, taking all
   their Pick 3 and survivor picks with them (standings recompute from what's left).
-  Admins can't be removed from the UI, and you can't remove yourself.
+  Admins can't be removed from the UI until their admin role is revoked, and you can't
+  remove yourself.
 - **Pick status**: `/admin` lists every player's Pick 3 count and survivor status for the
-  current week, incomplete players first, so the commissioner can nudge before Saturday.
+  current week, incomplete players first, alongside their email (a mailto link) and
+  last-seen time, so the commissioner or an admin can nudge before Saturday.
+- **View as**: a real super admin gets a strip under the header to browse the whole site
+  as a **Player**, **Admin** or **Super admin** — pages, tabs and even server actions
+  behave as they would for that role, for troubleshooting. It's a cookie only honored
+  when the underlying session is a super admin, so it can never raise privileges, and
+  it's cleared on logout.
 - **Last seen**: `/admin` shows when each player last loaded a page while signed in,
   refreshed at most every 15 minutes (a session cookie lasts all season, so a login
   timestamp alone would go stale).
@@ -107,7 +121,8 @@ Classic sudden-death survivor on `/survivor`, sharing the same games, sync and l
 ## Tests
 
 `npm test` — Vitest suites for ATS grading & weekly scoring, ESPN scoreboard/odds
-parsing, season-year detection, session cookies, and the admin PIN hash.
+parsing, season-year detection, session cookies, the admin PIN hash, and the role /
+view-as rules.
 
 ## Deploy (Vercel + Neon)
 

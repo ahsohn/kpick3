@@ -23,7 +23,7 @@ export default async function SettingsPage() {
             key={`${user.displayName}|${user.email}`}
             displayName={user.displayName}
             email={user.email}
-            isAdmin={user.isAdmin}
+            isSuperAdmin={user.role === 'super_admin'}
           />
         </section>
         <section className="rounded-xl border border-line bg-surface p-5">

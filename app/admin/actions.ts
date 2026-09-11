@@ -4,7 +4,8 @@ import { db } from '@/lib/db'
 import { games, users, picks, survivorEntries, survivorPicks, notifications } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth/session'
+import { requireSuperAdmin } from '@/lib/auth/session'
+import { ROLE_LABEL } from '@/lib/auth/roles'
 import { runSyncPass, gradeFinishedGames } from '@/lib/espn/sync'
 import { getCurrentSeason } from '@/lib/picks/queries'
 import { sendEmail } from '@/lib/email/send'
@@ -24,7 +25,7 @@ export interface AdminResult {
 }
 
 export async function addUser(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   const email = normalizeEmail(formData.get('email'))
   const displayName = normalizeDisplayName(formData.get('displayName'))
   const emailError = validateEmail(email)
@@ -42,7 +43,7 @@ export async function addUser(_prev: AdminResult, formData: FormData): Promise<A
 
 /** Renames a player. Standings, picks and survivor pages all read the live name. */
 export async function renamePlayer(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   const userId = parseInt(String(formData.get('userId')), 10)
   const displayName = normalizeDisplayName(formData.get('displayName'))
   if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
@@ -66,12 +67,12 @@ export async function renamePlayer(_prev: AdminResult, formData: FormData): Prom
 
 /**
  * Permanently removes a player along with every pick and survivor entry they made.
- * Standings recompute from what's left. Admins can't be removed here (demote via the
- * DB first), and you can't remove yourself. Notification sent-log rows are kept for
- * dedupe but detached from the user.
+ * Standings recompute from what's left. Admins can't be removed here (revoke their
+ * admin role first), and you can't remove yourself. Notification sent-log rows are
+ * kept for dedupe but detached from the user.
  */
 export async function removePlayer(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  const admin = await requireAdmin()
+  const admin = await requireSuperAdmin()
   const userId = parseInt(String(formData.get('userId')), 10)
   if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
   if (userId === admin.id) return { error: "You can't remove yourself." }
@@ -79,7 +80,9 @@ export async function removePlayer(_prev: AdminResult, formData: FormData): Prom
   const rows = await db.select().from(users).where(eq(users.id, userId))
   const player = rows[0]
   if (!player) return { error: 'Player not found.' }
-  if (player.isAdmin) return { error: 'Admins can\'t be removed from here.' }
+  if (player.role !== 'player') {
+    return { error: "Admins can't be removed — revoke their admin role first." }
+  }
 
   let pickCount = 0
   let survivorCount = 0
@@ -103,8 +106,38 @@ export async function removePlayer(_prev: AdminResult, formData: FormData): Prom
   }
 }
 
+/**
+ * Grants or revokes the admin role (the read-only pick-status view). Only the super
+ * admin can do this; the super admin's own row is off-limits (that role lives in the
+ * seed), as is granting super_admin from the UI.
+ */
+export async function setPlayerRole(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
+  const actor = await requireSuperAdmin()
+  const userId = parseInt(String(formData.get('userId')), 10)
+  const role = String(formData.get('role'))
+  if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
+  if (role !== 'player' && role !== 'admin') return { error: 'Bad role.' }
+  if (userId === actor.id) return { error: "You can't change your own role." }
+
+  const rows = await db.select().from(users).where(eq(users.id, userId))
+  const player = rows[0]
+  if (!player) return { error: 'Player not found.' }
+  if (player.role === 'super_admin') return { error: "The super admin's role is set by the seed." }
+  if (player.role === role) return { ok: true, info: `${player.displayName} is already a${role === 'admin' ? 'n' : ''} ${ROLE_LABEL[role].toLowerCase()}.` }
+
+  await db.update(users).set({ role }).where(eq(users.id, userId))
+  revalidatePath('/admin')
+  return {
+    ok: true,
+    info:
+      role === 'admin'
+        ? `${player.displayName} is now an admin (they can see the pick-status table).`
+        : `${player.displayName} is a player again.`,
+  }
+}
+
 export async function runSyncNow(): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   try {
     const result = await runSyncPass()
     revalidatePath('/')
@@ -123,7 +156,7 @@ export async function runSyncNow(): Promise<AdminResult> {
  * normal grading pass runs against it.
  */
 export async function resolveFlaggedGame(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   const gameId = parseInt(String(formData.get('gameId')), 10)
   const homeScore = parseInt(String(formData.get('homeScore')), 10)
   const awayScore = parseInt(String(formData.get('awayScore')), 10)
@@ -149,7 +182,7 @@ export async function resolveFlaggedGame(_prev: AdminResult, formData: FormData)
 
 /** Voids all pending picks on a game (e.g. indefinitely postponed). */
 export async function voidGamePicks(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   const gameId = parseInt(String(formData.get('gameId')), 10)
   if (!Number.isFinite(gameId)) return { error: 'Bad game id.' }
 
@@ -176,7 +209,7 @@ export async function voidGamePicks(_prev: AdminResult, formData: FormData): Pro
 
 /** Enrolls a player in the current season's survivor pool. */
 export async function enrollSurvivorPlayer(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   const userId = parseInt(String(formData.get('userId')), 10)
   if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
 
@@ -205,7 +238,7 @@ export async function enrollSurvivorPlayer(_prev: AdminResult, formData: FormDat
  * so a mistaken enrollment is fixable but pool history can't be erased.
  */
 export async function unenrollSurvivorPlayer(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   const userId = parseInt(String(formData.get('userId')), 10)
   if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
 
@@ -235,7 +268,7 @@ export async function unenrollSurvivorPlayer(_prev: AdminResult, formData: FormD
 
 /** Toggles one of a player's email prefs (admin-side; players self-serve on /settings). */
 export async function toggleEmailPref(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   const userId = parseInt(String(formData.get('userId')), 10)
   const pref = String(formData.get('pref'))
   if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
@@ -259,7 +292,7 @@ export async function toggleEmailPref(_prev: AdminResult, formData: FormData): P
 
 /** Sends a deliverability-test email to one player. Deliberately ignores their opt-out. */
 export async function sendTestEmail(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
-  await requireAdmin()
+  await requireSuperAdmin()
   const userId = parseInt(String(formData.get('userId')), 10)
   if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
 

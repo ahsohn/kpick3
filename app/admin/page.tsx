@@ -6,12 +6,15 @@ import { Shell } from '@/components/Shell'
 import { getCurrentSeason, getCurrentWeek } from '@/lib/picks/queries'
 import { getSurvivorSeasonData } from '@/lib/survivor/queries'
 import { formatKickoff } from '@/lib/format'
+import { isSuperAdmin } from '@/lib/auth/roles'
 import { AdminPanels, type SurvivorAdminRow, type WeekStatusRow } from './panels'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminPage() {
+  // Admins get the read-only pick-status table; the super admin gets everything.
   const user = await requireAdmin()
+  const canManage = isSuperAdmin(user.role)
   const season = await getCurrentSeason()
   const currentWeek = season ? await getCurrentWeek(season) : null
 
@@ -65,6 +68,9 @@ export default async function AdminPage() {
     return {
       userId: u.id,
       displayName: u.displayName,
+      email: u.email,
+      // Formatted server-side so the client table never renders in a viewer's local zone.
+      lastSeen: u.lastSeenAt ? formatKickoff(u.lastSeenAt) : null,
       pick3Count: weekPicksByUser.get(u.id) ?? 0,
       survivor: survivorState,
     }
@@ -74,14 +80,14 @@ export default async function AdminPage() {
     <Shell user={user} week={currentWeek}>
       <div className="mx-auto max-w-6xl px-7 pb-10 pt-6 max-lg:px-4">
       <AdminPanels
+        canManage={canManage}
         users={allUsers.map((u) => ({
           id: u.id,
           email: u.email,
           displayName: u.displayName,
-          isAdmin: u.isAdmin,
+          role: u.role,
           emailReminders: u.emailReminders,
           emailRecaps: u.emailRecaps,
-          // Formatted server-side so the client table never renders in a viewer's local zone.
           lastSeen: u.lastSeenAt ? formatKickoff(u.lastSeenAt) : null,
           isSelf: u.id === user.id,
           pickCount: picksByUser.get(u.id) ?? 0,

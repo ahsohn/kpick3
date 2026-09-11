@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/login/actions'
+import { canViewAdmin, ROLE_LABEL, type Role } from '@/lib/auth/roles'
 
 const PICK3_TABS = [
   { href: '/', label: 'Make Picks' },
@@ -22,12 +23,12 @@ const SURVIVOR_TABS = [
  */
 export function Header({
   displayName,
-  isAdmin,
+  role,
   week,
   survivorAlert,
 }: {
   displayName: string
-  isAdmin: boolean
+  role: Role
   week: number | null
   survivorAlert: boolean
 }) {
@@ -35,7 +36,7 @@ export function Header({
   const survivorMode = pathname.startsWith('/survivor')
   const tabs = survivorMode
     ? SURVIVOR_TABS
-    : isAdmin
+    : canViewAdmin(role)
       ? [...PICK3_TABS, { href: '/admin', label: 'Admin' }]
       : PICK3_TABS
   const accent = survivorMode ? 'var(--color-amber)' : 'var(--color-accent)'
@@ -86,8 +87,10 @@ export function Header({
         </summary>
         <div className="absolute right-0 z-50 mt-2 w-48 rounded-[10px] border border-control bg-surface-2 p-2 shadow-[0_8px_24px_rgba(0,0,0,.5)]">
           <div className="px-2 py-1.5 text-[13px] font-semibold text-ink-2">{displayName}</div>
-          {isAdmin && (
-            <div className="px-2 pb-1.5 text-[10px] font-extrabold tracking-[.1em] text-muted">ADMIN</div>
+          {role !== 'player' && (
+            <div className="px-2 pb-1.5 text-[10px] font-extrabold tracking-[.1em] text-muted">
+              {ROLE_LABEL[role].toUpperCase()}
+            </div>
           )}
           <Link
             href="/settings"

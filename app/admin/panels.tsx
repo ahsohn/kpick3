@@ -9,17 +9,19 @@ import {
   resolveFlaggedGame,
   runSyncNow,
   sendTestEmail,
+  setPlayerRole,
   toggleEmailPref,
   unenrollSurvivorPlayer,
   voidGamePicks,
   type AdminResult,
 } from './actions'
+import { ROLE_LABEL, type Role } from '@/lib/auth/roles'
 
 interface UserRow {
   id: number
   email: string
   displayName: string
-  isAdmin: boolean
+  role: Role
   emailReminders: boolean
   emailRecaps: boolean
   /** Pre-formatted ET timestamp of their last page load, or null if they've never visited. */
@@ -49,29 +51,46 @@ export interface SurvivorAdminRow {
 export interface WeekStatusRow {
   userId: number
   displayName: string
+  email: string
+  /** Pre-formatted ET timestamp of their last page load, or null if they've never visited. */
+  lastSeen: string | null
   /** Pick 3 picks in for the current week (0–3). */
   pick3Count: number
   survivor: 'not-enrolled' | 'eliminated' | 'picked' | 'missing'
 }
 
 export function AdminPanels({
+  canManage,
   users,
   flagged,
   survivorRows,
   survivorSeason,
   weekStatus,
 }: {
+  /** False for the read-only admin role: only the week status table renders. */
+  canManage: boolean
   users: UserRow[]
   flagged: FlaggedGame[]
   survivorRows: SurvivorAdminRow[]
   survivorSeason: number | null
   weekStatus: { week: number | null; rows: WeekStatusRow[] }
 }) {
+  const weekStatusPanel =
+    weekStatus.week !== null ? (
+      <WeekStatusPanel week={weekStatus.week} rows={weekStatus.rows} />
+    ) : (
+      <Panel title="Pick Status">
+        <p className="text-sm text-muted">No games loaded yet — the table appears once the season exists.</p>
+      </Panel>
+    )
+  if (!canManage) {
+    return <div className="flex flex-col gap-6">{weekStatusPanel}</div>
+  }
   return (
     <div className="flex flex-col gap-6">
       <SyncPanel />
       {flagged.length > 0 && <FlaggedPanel flagged={flagged} />}
-      {weekStatus.week !== null && <WeekStatusPanel week={weekStatus.week} rows={weekStatus.rows} />}
+      {weekStatusPanel}
       <UsersPanel users={users} />
       <SurvivorPanel rows={survivorRows} season={survivorSeason} />
     </div>
@@ -141,12 +160,15 @@ function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }
           ? 'Everyone is in for the week.'
           : `${owing} player${owing === 1 ? '' : 's'} still owe${owing === 1 ? 's' : ''} a pick.`}{' '}
         Survivor shows IN once a pick is in (the team is hidden until kickoff, same as for players).
+        Last seen is the last time they loaded a page while signed in.
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-muted">
               <th className="pb-2 pr-4">Player</th>
+              <th className="pb-2 pr-4">Email</th>
+              <th className="pb-2 pr-4">Last seen</th>
               <th className="pb-2 pr-4">Pick 3</th>
               <th className="pb-2">Survivor</th>
             </tr>
@@ -155,6 +177,10 @@ function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }
             {sorted.map((r) => (
               <tr key={r.userId} className={`border-t border-line ${owes(r) ? '' : 'opacity-60'}`}>
                 <td className="py-2 pr-4 font-semibold">{r.displayName}</td>
+                <td className="py-2 pr-4 text-muted">
+                  <a href={`mailto:${r.email}`} className="hover:text-ink hover:underline">{r.email}</a>
+                </td>
+                <td className="whitespace-nowrap py-2 pr-4 text-muted">{r.lastSeen ?? 'Never'}</td>
                 <td className="py-2 pr-4">
                   <span className="mr-2 inline-flex gap-1" aria-hidden>
                     {[0, 1, 2].map((i) => (
@@ -302,6 +328,7 @@ function PlayerRow({ user }: { user: UserRow }) {
   const [state, action, pending] = useActionState(renamePlayer, {})
   const [emailState, emailAction, emailPending] = useActionState(toggleEmailPref, {})
   const [testState, testAction, testPending] = useActionState(sendTestEmail, {})
+  const [roleState, roleAction, rolePending] = useActionState(setPlayerRole, {})
   return (
     <tr className="border-b border-line last:border-b-0">
       <td className="px-3 py-2 font-semibold">
@@ -352,7 +379,30 @@ function PlayerRow({ user }: { user: UserRow }) {
         <Feedback state={state} />
       </td>
       <td className="px-3 py-2 text-muted">{user.email}</td>
-      <td className="px-3 py-2">{user.isAdmin ? <span className="font-bold text-primary">Admin</span> : 'Player'}</td>
+      <td className="px-3 py-2">
+        <span className="flex items-center gap-2">
+          <span className={user.role === 'player' ? '' : 'font-bold text-primary'}>{ROLE_LABEL[user.role]}</span>
+          {user.role !== 'super_admin' && !user.isSelf && (
+            <form action={roleAction} className="inline">
+              <input type="hidden" name="userId" value={user.id} />
+              <input type="hidden" name="role" value={user.role === 'admin' ? 'player' : 'admin'} />
+              <button
+                type="submit"
+                disabled={rolePending}
+                title={
+                  user.role === 'admin'
+                    ? 'Revoke admin (back to a regular player)'
+                    : 'Make admin: they get the read-only pick-status table with emails and last-seen'
+                }
+                className="cursor-pointer rounded border border-line px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted hover:border-primary hover:text-primary disabled:opacity-50"
+              >
+                {rolePending ? '…' : user.role === 'admin' ? 'Revoke' : 'Make admin'}
+              </button>
+            </form>
+          )}
+        </span>
+        <Feedback state={roleState} />
+      </td>
       <td className="whitespace-nowrap px-3 py-2 text-muted">{user.lastSeen ?? 'Never'}</td>
       <td className="px-3 py-2">
         <span className="flex items-center gap-2">
@@ -404,7 +454,7 @@ function PlayerRow({ user }: { user: UserRow }) {
         <Feedback state={testState} />
       </td>
       <td className="px-3 py-2 text-right">
-        {!user.isAdmin && !user.isSelf && <RemovePlayerButton user={user} />}
+        {user.role === 'player' && !user.isSelf && <RemovePlayerButton user={user} />}
       </td>
     </tr>
   )

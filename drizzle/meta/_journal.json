@@ -57,6 +57,13 @@
       "when": 1789008753436,
       "tag": "0007_picked_spread",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789154254659,
+      "tag": "0008_user_roles",
+      "breakpoints": true
     }
   ]
 }
