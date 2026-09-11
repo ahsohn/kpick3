@@ -259,14 +259,15 @@ export function PickBoard({
       const game = byGame.get(p.gameId)
       if (!game) return null
       const teamName = p.side === 'home' ? game.homeTeamName : game.awayTeamName
-      const opp = p.side === 'home' ? `vs ${game.awayTeamName}` : `at ${game.homeTeamName}`
+      const opp = p.side === 'home' ? `vs ${game.awayTeamAbbr}` : `at ${game.homeTeamAbbr}`
       const open = !gameStarted(game, now) && !game.canceled
       return {
         gameId: p.gameId,
         title: `${teamName} ${formatSpread(p.lockedSpread)}`,
         detail: `${opp} · ${titleDay(game.kickoffDay)} ${game.kickoffTime}`,
         removable: open,
-        lineWarning: open && !game.lineLocked ? `Line locks ${game.lineLocksLabel}` : null,
+        // Short and quiet: the full "graded on the locked line" story lives on the board's helper text.
+        lineWarning: open && !game.lineLocked ? `Line locks ${game.lineLocksShort}` : null,
         // Once locked (and until kickoff) show picked-at vs locked so they can decide to keep it.
         lockedNote: open && game.lineLocked ? lockedLineNote(p.pickedSpread, p.lockedSpread) : null,
       }
@@ -276,7 +277,7 @@ export function PickBoard({
   const pendingEntries = [...selected.entries()].map(([gameId, side]) => {
     const game = byGame.get(gameId)!
     const teamName = side === 'home' ? game.homeTeamName : game.awayTeamName
-    const opp = side === 'home' ? `vs ${game.awayTeamName}` : `at ${game.homeTeamName}`
+    const opp = side === 'home' ? `vs ${game.awayTeamAbbr}` : `at ${game.homeTeamAbbr}`
     const spread = game.homeSpread === null ? null : side === 'home' ? game.homeSpread : -game.homeSpread
     return {
       gameId,
@@ -299,11 +300,7 @@ export function PickBoard({
             <div>
               <div className="text-[13px] font-bold">{e.title}</div>
               <div className="text-[11px] text-muted">{e.detail}</div>
-              {e.lineWarning && (
-                <div className="mt-0.5 text-[11px] font-semibold text-amber">
-                  ⚠ {e.lineWarning} — graded on the locked line, check back before kickoff
-                </div>
-              )}
+              {e.lineWarning && <div className="mt-0.5 text-[11px] text-muted">{e.lineWarning}</div>}
               {e.lockedNote && (
                 <div
                   className={`mt-0.5 text-[11px] font-semibold ${e.lockedNote.moved ? 'text-amber' : 'text-muted'}`}
@@ -314,9 +311,11 @@ export function PickBoard({
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-[5px] border border-green/40 px-1.5 py-0.5 text-[10px] font-extrabold tracking-[.08em] text-green">
-                {e.lineWarning ? 'PICK IN' : 'LOCKED'}
-              </span>
+              {!e.lineWarning && (
+                <span className="rounded-[5px] border border-green/40 px-1.5 py-0.5 text-[10px] font-extrabold tracking-[.08em] text-green">
+                  LOCKED
+                </span>
+              )}
               {e.removable && (
                 <button
                   type="button"

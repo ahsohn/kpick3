@@ -25,6 +25,7 @@ export interface BoardGame {
   oddsAvailable: boolean
   lineLocked: boolean
   lineLocksLabel: string // e.g. "Sat, Sep 12 · 1:00 PM ET"
+  lineLocksShort: string // e.g. "Sat 1:00 PM" — for the pick slip
 }
 
 export function toBoardGame(g: Game): BoardGame {
@@ -50,5 +51,10 @@ export function toBoardGame(g: Game): BoardGame {
     oddsAvailable: g.oddsAvailable,
     lineLocked: isLineLocked(g.kickoff),
     lineLocksLabel: formatKickoff(lineLockTime(g.kickoff)),
+    lineLocksShort: `${titleCase(formatKickoffDay(lineLockTime(g.kickoff)))} ${formatKickoffTime(lineLockTime(g.kickoff))}`,
   }
+}
+
+function titleCase(day: string): string {
+  return day.charAt(0) + day.slice(1).toLowerCase()
 }
