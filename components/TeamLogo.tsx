@@ -1,6 +1,6 @@
 /** ESPN team logo with an abbreviation tile fallback when the sync had no logo URL. */
-export function TeamLogo({ src, abbr, small }: { src: string; abbr: string; small?: boolean }) {
-  const size = small ? 'h-4 w-4' : 'h-6 w-6'
+export function TeamLogo({ src, abbr, small, board }: { src: string; abbr: string; small?: boolean; board?: boolean }) {
+  const size = small ? 'h-4 w-4' : board ? 'h-7 w-7' : 'h-6 w-6'
   if (!src) {
     return (
       <span

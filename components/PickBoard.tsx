@@ -7,6 +7,8 @@ import { formatSpread } from '@/lib/format'
 import { lockedLineNote } from '@/lib/picks/line-move'
 import type { PickResult } from '@/lib/picks/grading'
 import type { BoardGame } from './board-types'
+import { TeamLogo } from './TeamLogo'
+import { liveCover, LIVE_COVER_COLOR, type LiveCover } from '@/lib/picks/live-cover'
 import { useBottomSheet } from './use-bottom-sheet'
 
 interface ExistingPick {
@@ -197,20 +199,39 @@ export function PickBoard({
     )
   }
 
+  /** Live only: where each side stands against the game's locked line right now. */
+  function sideCover(game: BoardGame, side: 'home' | 'away'): LiveCover | null {
+    if (game.statusState !== 'in' || game.homeSpread === null) return null
+    const spread = side === 'home' ? game.homeSpread : -game.homeSpread
+    return liveCover(side, spread, game.homeScore, game.awayScore)
+  }
+
   function TeamLine({ game, side, mobile }: { game: BoardGame; side: 'home' | 'away'; mobile?: boolean }) {
     const started = gameStarted(game, now)
     const abbr = side === 'away' ? game.awayTeamAbbr : game.homeTeamAbbr
     const name = side === 'away' ? game.awayTeamName : game.homeTeamName
+    const logo = side === 'away' ? game.awayTeamLogo : game.homeTeamLogo
     const score = side === 'away' ? game.awayScore : game.homeScore
     // Only revealed once the game kicks off, so this doubles as the live/final gate.
     const sidePickers = pickers.filter((p) => p.gameId === game.id && p.side === side)
+    const cover = sideCover(game, side)
+    const highlight = cover === 'covering' || cover === 'on-number'
     return (
       <div className="flex items-center gap-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] bg-tile text-[10px] font-extrabold">
-          {abbr}
-        </span>
+        <TeamLogo src={logo} abbr={abbr} board />
         <span className="flex flex-col">
-          <span className="text-sm font-semibold">{name}</span>
+          <span className="flex items-center gap-1.5">
+            <span className={`text-sm font-semibold ${highlight ? LIVE_COVER_COLOR[cover] : ''}`}>{name}</span>
+            {highlight && (
+              <span
+                className={`rounded-[4px] border px-1 py-px text-[9px] font-extrabold tracking-[.08em] ${
+                  cover === 'covering' ? 'border-green/40 text-green' : 'border-amber/40 text-amber'
+                }`}
+              >
+                {cover === 'covering' ? 'COVERING' : 'ON THE NUMBER'}
+              </span>
+            )}
+          </span>
           {sidePickers.length > 0 && (
             <span className={`text-[11px] leading-tight ${RESULT_COLOR[sidePickers[0].result]}`}>
               {sidePickers.map((p) => p.displayName).join(', ')}
@@ -218,7 +239,9 @@ export function PickBoard({
           )}
         </span>
         {started && score !== null && (
-          <span className="ml-auto text-[15px] font-extrabold tabular-nums">{score}</span>
+          <span className={`ml-auto text-[15px] font-extrabold tabular-nums ${highlight ? LIVE_COVER_COLOR[cover] : ''}`}>
+            {score}
+          </span>
         )}
         {mobile && <span className={started && score !== null ? 'ml-3' : 'ml-auto'}><Chip game={game} side={side} mobile /></span>}
       </div>
