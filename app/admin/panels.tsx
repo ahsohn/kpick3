@@ -136,6 +136,18 @@ function SyncPanel() {
 /** Who still owes picks this week — the nudge list, incomplete players first. */
 function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }) {
   const owes = (r: WeekStatusRow) => r.pick3Count < 3 || r.survivor === 'missing'
+  const [selected, setSelected] = useState<Set<number>>(() => new Set())
+  const toggle = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.userId))
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.userId)))
+  const selectedEmails = rows.filter((r) => selected.has(r.userId)).map((r) => r.email)
+  const mailtoHref = `mailto:${selectedEmails.join(',')}`
   const sorted = [...rows].sort((a, b) => {
     if (owes(a) !== owes(b)) return owes(a) ? -1 : 1
     return a.pick3Count - b.pick3Count || a.displayName.localeCompare(b.displayName)
@@ -162,10 +174,37 @@ function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }
         Survivor shows IN once a pick is in (the team is hidden until kickoff, same as for players).
         Last seen is the last time they loaded a page while signed in.
       </p>
+      <div className="mb-3 flex items-center gap-3">
+        {selectedEmails.length > 0 ? (
+          <a
+            href={mailtoHref}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:opacity-90"
+          >
+            Email selected ({selectedEmails.length})
+          </a>
+        ) : (
+          <span
+            aria-disabled
+            className="cursor-not-allowed rounded-lg bg-line px-4 py-2 text-sm font-bold text-muted"
+          >
+            Email selected (0)
+          </span>
+        )}
+        <span className="text-xs text-muted">Check players, then click to open a draft in your mail app.</span>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-muted">
+              <th className="pb-2 pr-2">
+                <input
+                  type="checkbox"
+                  aria-label="Select all players"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  className="h-4 w-4 accent-primary"
+                />
+              </th>
               <th className="pb-2 pr-4">Player</th>
               <th className="pb-2 pr-4">Email</th>
               <th className="pb-2 pr-4">Last seen</th>
@@ -176,6 +215,15 @@ function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }
           <tbody>
             {sorted.map((r) => (
               <tr key={r.userId} className={`border-t border-line ${owes(r) ? '' : 'opacity-60'}`}>
+                <td className="py-2 pr-2">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${r.displayName}`}
+                    checked={selected.has(r.userId)}
+                    onChange={() => toggle(r.userId)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                </td>
                 <td className="py-2 pr-4 font-semibold">{r.displayName}</td>
                 <td className="py-2 pr-4 text-muted">
                   <a href={`mailto:${r.email}`} className="hover:text-ink hover:underline">{r.email}</a>
