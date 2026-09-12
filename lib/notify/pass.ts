@@ -19,7 +19,7 @@ import { weeklyPoints, type PickResult } from '@/lib/picks/grading'
 import { formatSpread } from '@/lib/format'
 import { sendEmail } from '@/lib/email/send'
 import { signUnsubscribeToken } from '@/lib/email/unsubscribe'
-import { reminderWindow } from './windows'
+import { reminderDateKey, reminderWindow } from './windows'
 import { needsPick3Reminder, needsSurvivorReminder, pickableGames, weekFullyGraded } from './eligibility'
 import { reminderEmail, recapEmail, needsReviewEmail, SITE_URL } from './emails'
 
@@ -67,6 +67,7 @@ function unsubscribeUrl(userId: number): string {
 async function runReminderPass(now: Date): Promise<number> {
   const window = reminderWindow(now)
   if (!window) return 0
+  const dateKey = reminderDateKey(now)
   const season = await getCurrentSeason()
   if (season === null) return 0
   const week = await getCurrentWeek(season)
@@ -126,11 +127,11 @@ async function runReminderPass(now: Date): Promise<number> {
       })
 
       if (wantsPick3) {
-        const key = `reminder:pick3:${window}:${season}:w${week}:u${player.id}`
+        const key = `reminder:pick3:${dateKey}:${season}:w${week}:u${player.id}`
         if (await claimKey('reminder', key, player.id)) claimed.push(key)
       }
       if (wantsSurvivor) {
-        const key = `reminder:survivor:${window}:${season}:w${week}:u${player.id}`
+        const key = `reminder:survivor:${dateKey}:${season}:w${week}:u${player.id}`
         if (await claimKey('reminder', key, player.id)) claimed.push(key)
       }
       if (claimed.length === 0) continue // every needed pool already sent this window

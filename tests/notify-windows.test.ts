@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { reminderWindow } from '../lib/notify/windows'
+import { reminderDateKey, reminderWindow } from '../lib/notify/windows'
 
 describe('reminderWindow', () => {
   it('is null before 9 AM ET on Saturday', () => {
@@ -30,5 +30,18 @@ describe('reminderWindow', () => {
     // 2026-12-20 (Sunday): 13:55 UTC = 8:55 AM EST → closed; 14:55 UTC = 9:55 AM EST → open
     expect(reminderWindow(new Date('2026-12-20T13:55:00Z'))).toBeNull()
     expect(reminderWindow(new Date('2026-12-20T14:55:00Z'))).toBe('sun')
+  })
+})
+
+describe('reminderDateKey', () => {
+  it('uses the ET calendar date, so late Saturday UTC is still Saturday', () => {
+    // 02:55 UTC Sunday is 10:55 PM ET Saturday.
+    expect(reminderDateKey(new Date('2026-09-13T02:55:00Z'))).toBe('2026-09-12')
+  })
+
+  it('gives consecutive Saturdays different keys even within the same week number', () => {
+    expect(reminderDateKey(new Date('2026-09-05T13:55:00Z'))).not.toBe(
+      reminderDateKey(new Date('2026-09-12T13:55:00Z'))
+    )
   })
 })
