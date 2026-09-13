@@ -9,7 +9,7 @@ describe('lockedLineNote', () => {
     })
   })
   it('confirms the number when the line held', () => {
-    expect(lockedLineNote(3, 3)).toEqual({ moved: false, text: 'Locked at +3 — the line you picked' })
+    expect(lockedLineNote(3, 3)).toEqual({ moved: false, text: 'Line locked at +3 — the line you picked' })
   })
   it('formats a pick-em line', () => {
     expect(lockedLineNote(-1, 0)?.text).toBe('Line moved — you picked at -1, locked at PK')

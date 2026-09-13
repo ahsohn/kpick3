@@ -313,7 +313,7 @@ export function PickBoard({
             <div className="flex items-center gap-2">
               {!e.lineWarning && (
                 <span className="rounded-[5px] border border-green/40 px-1.5 py-0.5 text-[10px] font-extrabold tracking-[.08em] text-green">
-                  LOCKED
+                  LINE LOCKED
                 </span>
               )}
               {e.removable && (
@@ -401,7 +401,7 @@ export function PickBoard({
     pendingEntries.length > 0
       ? `${pendingEntries[0].title}${pendingEntries.length > 1 ? ` +${pendingEntries.length - 1}` : ''} not submitted`
       : remaining <= 0
-        ? 'All 3 picks locked'
+        ? 'All 3 picks in'
         : `${remaining - pendingEntries.length} slot${remaining - pendingEntries.length === 1 ? '' : 's'} open`
 
   return (
@@ -479,7 +479,7 @@ export function PickBoard({
         <div className="mb-3.5 flex items-baseline justify-between">
           <span className="text-sm font-extrabold tracking-[.08em]">PICK SLIP</span>
           <span className="text-xs font-bold text-muted">
-            <span className="text-green">{lockedEntries.length}</span>/3 locked
+            <span className="text-green">{lockedEntries.length}</span>/3 in
           </span>
         </div>
         <SlipBody />
@@ -542,7 +542,7 @@ export function PickBoard({
               >
                 <span className="text-sm font-extrabold tracking-[.08em]">PICK SLIP</span>
                 <span className="text-xs font-bold text-muted">
-                  <span className="text-green">{lockedEntries.length}</span>/3 locked
+                  <span className="text-green">{lockedEntries.length}</span>/3 in
                 </span>
               </div>
             </div>

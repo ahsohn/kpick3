@@ -15,7 +15,7 @@ export interface LockedLineNote {
 export function lockedLineNote(pickedSpread: number | null, lockedSpread: number): LockedLineNote | null {
   if (pickedSpread === null) return null
   if (pickedSpread === lockedSpread) {
-    return { moved: false, text: `Locked at ${formatSpread(lockedSpread)} — the line you picked` }
+    return { moved: false, text: `Line locked at ${formatSpread(lockedSpread)} — the line you picked` }
   }
   return {
     moved: true,
