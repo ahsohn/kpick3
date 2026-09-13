@@ -5,7 +5,7 @@ import { and, asc, count, eq } from 'drizzle-orm'
 import { Shell } from '@/components/Shell'
 import { getCurrentSeason, getCurrentWeek } from '@/lib/picks/queries'
 import { getSurvivorSeasonData } from '@/lib/survivor/queries'
-import { formatKickoff } from '@/lib/format'
+import { formatKickoff, formatLastSeen } from '@/lib/format'
 import { isSuperAdmin } from '@/lib/auth/roles'
 import { AdminPanels, type SurvivorAdminRow, type WeekStatusRow } from './panels'
 
@@ -43,6 +43,7 @@ export default async function AdminPage() {
   const picksByUser = new Map(pickCounts.map((r) => [r.userId, r.n]))
   const survivorPicksByUser = new Map(survivorPickCounts.map((r) => [r.userId, r.n]))
 
+  const now = new Date()
   const survivorByUser = new Map((survivor?.rows ?? []).map((r) => [r.userId, r.status]))
   const survivorRows: SurvivorAdminRow[] = allUsers.map((u) => {
     const status = survivorByUser.get(u.id)
@@ -70,7 +71,8 @@ export default async function AdminPage() {
       displayName: u.displayName,
       email: u.email,
       // Formatted server-side so the client table never renders in a viewer's local zone.
-      lastSeen: u.lastSeenAt ? formatKickoff(u.lastSeenAt) : null,
+      lastSeen: u.lastSeenAt ? formatLastSeen(u.lastSeenAt, now) : null,
+      lastSeenMs: u.lastSeenAt?.getTime() ?? null,
       pick3Count: weekPicksByUser.get(u.id) ?? 0,
       survivor: survivorState,
     }
@@ -88,7 +90,8 @@ export default async function AdminPage() {
           role: u.role,
           emailReminders: u.emailReminders,
           emailRecaps: u.emailRecaps,
-          lastSeen: u.lastSeenAt ? formatKickoff(u.lastSeenAt) : null,
+          lastSeen: u.lastSeenAt ? formatLastSeen(u.lastSeenAt, now) : null,
+          lastSeenMs: u.lastSeenAt?.getTime() ?? null,
           isSelf: u.id === user.id,
           pickCount: picksByUser.get(u.id) ?? 0,
           survivorPickCount: survivorPicksByUser.get(u.id) ?? 0,

@@ -24,8 +24,10 @@ interface UserRow {
   role: Role
   emailReminders: boolean
   emailRecaps: boolean
-  /** Pre-formatted ET timestamp of their last page load, or null if they've never visited. */
+  /** Pre-formatted "(ago) ET timestamp" of their last page load, or null if they've never visited. */
   lastSeen: string | null
+  /** Epoch ms of the same instant, for sorting. */
+  lastSeenMs: number | null
   /** The signed-in admin's own row — never removable. */
   isSelf: boolean
   pickCount: number
@@ -52,8 +54,10 @@ export interface WeekStatusRow {
   userId: number
   displayName: string
   email: string
-  /** Pre-formatted ET timestamp of their last page load, or null if they've never visited. */
+  /** Pre-formatted "(ago) ET timestamp" of their last page load, or null if they've never visited. */
   lastSeen: string | null
+  /** Epoch ms of the same instant, for sorting. */
+  lastSeenMs: number | null
   /** Pick 3 picks in for the current week (0–3). */
   pick3Count: number
   survivor: 'not-enrolled' | 'eliminated' | 'picked' | 'missing'
@@ -112,6 +116,45 @@ function Feedback({ state }: { state: AdminResult }) {
   return null
 }
 
+type LastSeenSort = 'none' | 'desc' | 'asc'
+
+/** Cycles none → most recent first → oldest first → none. */
+function nextLastSeenSort(s: LastSeenSort): LastSeenSort {
+  return s === 'none' ? 'desc' : s === 'desc' ? 'asc' : 'none'
+}
+
+/** Never-seen rows sink to the bottom in both directions. */
+function compareLastSeen(a: number | null, b: number | null, dir: 'asc' | 'desc'): number {
+  if (a === b) return 0
+  if (a === null) return 1
+  if (b === null) return -1
+  return dir === 'desc' ? b - a : a - b
+}
+
+function LastSeenHeader({
+  sort,
+  onToggle,
+  className,
+}: {
+  sort: LastSeenSort
+  onToggle: () => void
+  className: string
+}) {
+  const arrow = sort === 'desc' ? ' ▼' : sort === 'asc' ? ' ▲' : ''
+  return (
+    <th className={className} aria-sort={sort === 'desc' ? 'descending' : sort === 'asc' ? 'ascending' : 'none'}>
+      <button
+        type="button"
+        onClick={onToggle}
+        title="Sort by last seen"
+        className="cursor-pointer uppercase hover:text-ink"
+      >
+        Last seen{arrow}
+      </button>
+    </th>
+  )
+}
+
 function SyncPanel() {
   const [pending, startTransition] = useTransition()
   const [result, setResult] = useState<AdminResult>({})
@@ -148,7 +191,9 @@ function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.userId)))
   const selectedEmails = rows.filter((r) => selected.has(r.userId)).map((r) => r.email)
   const mailtoHref = `mailto:${selectedEmails.join(',')}`
+  const [seenSort, setSeenSort] = useState<LastSeenSort>('none')
   const sorted = [...rows].sort((a, b) => {
+    if (seenSort !== 'none') return compareLastSeen(a.lastSeenMs, b.lastSeenMs, seenSort)
     if (owes(a) !== owes(b)) return owes(a) ? -1 : 1
     return a.pick3Count - b.pick3Count || a.displayName.localeCompare(b.displayName)
   })
@@ -207,7 +252,11 @@ function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }
               </th>
               <th className="pb-2 pr-4">Player</th>
               <th className="pb-2 pr-4">Email</th>
-              <th className="pb-2 pr-4">Last seen</th>
+              <LastSeenHeader
+                className="pb-2 pr-4"
+                sort={seenSort}
+                onToggle={() => setSeenSort(nextLastSeenSort(seenSort))}
+              />
               <th className="pb-2 pr-4">Pick 3</th>
               <th className="pb-2">Survivor</th>
             </tr>
@@ -318,6 +367,11 @@ function FlaggedRow({ game }: { game: FlaggedGame }) {
 
 function UsersPanel({ users }: { users: UserRow[] }) {
   const [state, action, pending] = useActionState(addUser, {})
+  const [seenSort, setSeenSort] = useState<LastSeenSort>('none')
+  const sorted =
+    seenSort === 'none'
+      ? users
+      : [...users].sort((a, b) => compareLastSeen(a.lastSeenMs, b.lastSeenMs, seenSort))
   return (
     <Panel title="Players">
       <form action={action} className="mb-5 flex flex-wrap items-end gap-3">
@@ -355,13 +409,17 @@ function UsersPanel({ users }: { users: UserRow[] }) {
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Name</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Email</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Role</th>
-              <th className="px-3 py-2 font-semibold uppercase tracking-wider">Last seen</th>
+              <LastSeenHeader
+                className="px-3 py-2 font-semibold uppercase tracking-wider"
+                sort={seenSort}
+                onToggle={() => setSeenSort(nextLastSeenSort(seenSort))}
+              />
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Emails</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider"></th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {sorted.map((u) => (
               <PlayerRow key={u.id} user={u} />
             ))}
           </tbody>

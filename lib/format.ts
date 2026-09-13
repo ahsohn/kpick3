@@ -53,6 +53,11 @@ export function formatAgo(d: Date, now: Date = new Date()): string {
   return hours % 24 ? `${days}d ${hours % 24}h` : `${days}d`
 }
 
+/** Admin last-seen cell: "(3h 20m ago) Sun, Sep 7 · 1:00 PM ET". */
+export function formatLastSeen(d: Date, now: Date = new Date()): string {
+  return `(${formatAgo(d, now)} ago) ${formatKickoff(d)}`
+}
+
 /** The picked team's spread given the game's home-relative spread. */
 export function spreadForSide(homeSpread: number, side: 'home' | 'away'): number {
   return side === 'home' ? homeSpread : -homeSpread
