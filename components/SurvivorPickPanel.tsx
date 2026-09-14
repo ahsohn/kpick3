@@ -136,20 +136,24 @@ export function SurvivorPickPanel({
         {spread !== null && (
           <span className="text-[11px] font-semibold tabular-nums text-muted">{formatSpread(spread)}</span>
         )}
-        {isSelected && (
-          <span className="ml-auto text-[10px] font-extrabold tracking-[.08em] text-amber">SELECTED</span>
-        )}
-        {isMyPick && !isSelected && (
-          <span className="ml-auto text-[10px] font-extrabold tracking-[.08em] text-green">YOUR PICK</span>
-        )}
-        {isUsed && (
-          <span className="ml-auto whitespace-nowrap rounded-[4px] border border-strong px-1.5 py-0.5 text-[9px] font-extrabold tracking-[.1em] text-muted">
-            USED W{usedWeek}
-          </span>
-        )}
-        {!isSelected && !isMyPick && !isUsed && started && score !== null && (
-          <span className="ml-auto text-[15px] font-extrabold tabular-nums">{score}</span>
-        )}
+        {/* Right side: status label, then the score — the score must stay visible
+            even on the row that carries a "YOUR PICK" / "USED" label. */}
+        <span className="ml-auto flex shrink-0 items-center gap-3">
+          {isSelected && (
+            <span className="text-[10px] font-extrabold tracking-[.08em] text-amber">SELECTED</span>
+          )}
+          {isMyPick && !isSelected && (
+            <span className="text-[10px] font-extrabold tracking-[.08em] text-green">YOUR PICK</span>
+          )}
+          {isUsed && (
+            <span className="whitespace-nowrap rounded-[4px] border border-strong px-1.5 py-0.5 text-[9px] font-extrabold tracking-[.1em] text-muted">
+              USED W{usedWeek}
+            </span>
+          )}
+          {started && score !== null && (
+            <span className="text-[15px] font-extrabold tabular-nums">{score}</span>
+          )}
+        </span>
       </button>
     )
   }
