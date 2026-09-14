@@ -11,12 +11,15 @@ import { lockedLineNote } from '@/lib/picks/line-move'
 import { ResultBadge } from '@/components/ResultBadge'
 import { liveCover, LIVE_COVER_COLOR, LIVE_COVER_LABEL } from '@/lib/picks/live-cover'
 import { RemovePickButton } from '@/components/RemovePickButton'
+import { settleFinalsOnVisit } from '@/lib/espn/settle'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
 export default async function MyPicksPage() {
   const user = await requireUser()
+  // Grade any newly-final games before reading picks.
+  await settleFinalsOnVisit()
   const season = await getCurrentSeason()
   const currentWeek = season ? await getCurrentWeek(season) : null
 

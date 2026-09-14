@@ -30,12 +30,14 @@ export default async function SurvivorPage() {
   }
 
   const currentWeek = await getCurrentWeek(season)
-  const [data, weekGames, myPick, usedTeams, overlays] = await Promise.all([
+  // Overlays first: that read also grades any newly-final game, so the picks
+  // queried below already carry their results.
+  const overlays = await getLiveOverlays()
+  const [data, weekGames, myPick, usedTeams] = await Promise.all([
     getSurvivorSeasonData(season, user.id),
     getGamesForWeek(season, currentWeek),
     getUserSurvivorPickForWeek(user.id, season, currentWeek),
     getUsedTeams(user.id, season),
-    getLiveOverlays(),
   ])
 
   const myRow = data.rows.find((r) => r.userId === user.id)

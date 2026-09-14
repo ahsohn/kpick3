@@ -1,4 +1,4 @@
-import { fetchScoreboardCached } from './fetch'
+import { settleFinalsOnVisit } from './settle'
 import type { Game } from '@/lib/db/schema'
 
 export interface LiveOverlay {
@@ -12,14 +12,15 @@ export interface LiveOverlay {
 
 /**
  * Render-time live scores, keyed by espnId. Fresher than the last cron tick for
- * in-progress games; degrades to an empty map if ESPN is unreachable. Never used for
- * grading — only for display.
+ * in-progress games; degrades to an empty map if ESPN is unreachable. The overlay itself
+ * is display-only, but the same scoreboard read first settles any newly-final games so
+ * results land on the visit, not the next cron tick.
  */
 export async function getLiveOverlays(): Promise<Map<string, LiveOverlay>> {
   const map = new Map<string, LiveOverlay>()
   try {
-    const data = await fetchScoreboardCached()
-    for (const event of data.events ?? []) {
+    const data = await settleFinalsOnVisit()
+    for (const event of data?.events ?? []) {
       const comp = event.competitions?.[0]
       const status = comp?.status ?? {}
       const state = status.type?.state

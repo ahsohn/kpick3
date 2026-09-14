@@ -58,6 +58,16 @@ export async function runSyncPass() {
  * re-stamps them, so at lock time everyone sits on the same official number no
  * matter when they picked. After lock the game row is frozen, so this converges.
  */
+/**
+ * Visit-time counterpart to the cron pass: writes the given final/canceled ESPN events
+ * to the DB and grades their picks. Same upsert and grading as the cron, so line-lock
+ * and review rules are identical; the cron remains the backstop.
+ */
+export async function settleFinalEvents(events: any[]) {
+  for (const g of events.map(parseEvent)) await upsertGame(g)
+  return gradeFinishedGames()
+}
+
 async function restampUnlockedPicks() {
   const rows = await db
     .select({ pick: picks, kickoff: games.kickoff, homeSpread: games.homeSpread })

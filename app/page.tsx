@@ -42,11 +42,13 @@ export default async function MakePicksPage({
     )
   }
 
-  const [games, myPicks, { visible: revealedPicks }, overlays] = await Promise.all([
+  // Overlays first: that read also grades any newly-final game, so the picks
+  // queried below already carry their results.
+  const overlays = await getLiveOverlays()
+  const [games, myPicks, { visible: revealedPicks }] = await Promise.all([
     getGamesForWeek(ctx.season, ctx.week),
     getUserPicksForWeek(user.id, ctx.season, ctx.week),
     getVisibleWeekPicks(ctx.season, ctx.week),
-    getLiveOverlays(),
   ])
 
   return (

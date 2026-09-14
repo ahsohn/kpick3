@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth/session'
 import { getPlayerStandings, getCurrentSeason, getCurrentWeek } from '@/lib/picks/queries'
 import { rankByWeek, type PlayerStandings, type Totals, type WeekTotals } from '@/lib/picks/standings'
 import { Shell } from '@/components/Shell'
+import { settleFinalsOnVisit } from '@/lib/espn/settle'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +19,8 @@ export default async function StandingsPage({
   searchParams: Promise<{ week?: string }>
 }) {
   const user = await requireUser()
+  // Grade any newly-final games before reading standings.
+  await settleFinalsOnVisit()
   const season = await getCurrentSeason()
   const currentWeek = season ? await getCurrentWeek(season) : null
   const players = season ? await getPlayerStandings(season) : []
