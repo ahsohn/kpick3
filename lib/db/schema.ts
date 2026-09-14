@@ -17,6 +17,11 @@ export const users = pgTable('users', {
   // Per-type email preferences, self-served on /settings (admin alerts ignore these).
   emailReminders: boolean('email_reminders').notNull().default(true),
   emailRecaps: boolean('email_recaps').notNull().default(true),
+  // Pick 3 membership. Everyone is in by default; the super admin can unenroll a
+  // survivor-only player from /admin. Off = no pick board, no pick submissions, no
+  // Pick 3 reminders, and "—" in the week status table. (Survivor is opt-in per season
+  // via survivor_entries instead.)
+  pick3Enrolled: boolean('pick3_enrolled').notNull().default(true),
   // Last time this player loaded any page while signed in, refreshed by
   // getCurrentUser() at most once per SEEN_THROTTLE_MS. Null until their first visit
   // after this column shipped. Surfaces in the /admin players list.

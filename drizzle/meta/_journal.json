@@ -64,6 +64,13 @@
       "when": 1789154254659,
       "tag": "0008_user_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789350363589,
+      "tag": "0009_pick3_enrolled",
+      "breakpoints": true
     }
   ]
 }

@@ -266,6 +266,55 @@ export async function unenrollSurvivorPlayer(_prev: AdminResult, formData: FormD
   return { ok: true, info: 'Removed from the survivor pool.' }
 }
 
+/** Puts a player back in Pick 3 (everyone starts enrolled; this undoes an unenroll). */
+export async function enrollPick3Player(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
+  await requireSuperAdmin()
+  const userId = parseInt(String(formData.get('userId')), 10)
+  if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
+
+  const rows = await db.select().from(users).where(eq(users.id, userId))
+  const player = rows[0]
+  if (!player) return { error: 'Player not found.' }
+  if (player.pick3Enrolled) return { error: `${player.displayName} is already in Pick 3.` }
+
+  await db.update(users).set({ pick3Enrolled: true }).where(eq(users.id, userId))
+  revalidatePath('/admin')
+  revalidatePath('/')
+  return { ok: true, info: `${player.displayName} is in Pick 3.` }
+}
+
+/**
+ * Takes a player out of Pick 3 (e.g. survivor-only) — only while they have no Pick 3
+ * picks this season, same rule as survivor, so pool history can't be erased.
+ */
+export async function unenrollPick3Player(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
+  await requireSuperAdmin()
+  const userId = parseInt(String(formData.get('userId')), 10)
+  if (!Number.isFinite(userId)) return { error: 'Bad user id.' }
+
+  const rows = await db.select().from(users).where(eq(users.id, userId))
+  const player = rows[0]
+  if (!player) return { error: 'Player not found.' }
+  if (!player.pick3Enrolled) return { error: `${player.displayName} is not in Pick 3.` }
+
+  const season = await getCurrentSeason()
+  if (season !== null) {
+    const picksMade = await db
+      .select({ id: picks.id })
+      .from(picks)
+      .where(and(eq(picks.userId, userId), eq(picks.season, season)))
+      .limit(1)
+    if (picksMade.length > 0) {
+      return { error: 'That player has already made Pick 3 picks this season — they stay in.' }
+    }
+  }
+
+  await db.update(users).set({ pick3Enrolled: false }).where(eq(users.id, userId))
+  revalidatePath('/admin')
+  revalidatePath('/')
+  return { ok: true, info: `${player.displayName} is out of Pick 3.` }
+}
+
 /** Toggles one of a player's email prefs (admin-side; players self-serve on /settings). */
 export async function toggleEmailPref(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
   await requireSuperAdmin()

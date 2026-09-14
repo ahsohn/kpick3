@@ -24,6 +24,7 @@ export async function submitPicks(
   input: { gameId: number; side: 'home' | 'away' }[]
 ): Promise<SubmitResult> {
   const user = await requireUser()
+  if (!user.pick3Enrolled) return { error: 'You are not enrolled in Pick 3 this season.' }
 
   if (!Array.isArray(input) || input.length === 0) return { error: 'Select at least one game.' }
   if (input.length > MAX_PICKS_PER_WEEK) return { error: `At most ${MAX_PICKS_PER_WEEK} picks.` }

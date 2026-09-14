@@ -80,7 +80,7 @@ async function runReminderPass(now: Date): Promise<number> {
   for (const player of players) {
     const myPicks = await getUserPicksForWeek(player.id, season, week)
     const pickedGameIds = new Set(myPicks.map((p) => p.gameId))
-    const wantsPick3 = needsPick3Reminder(myPicks.length, weekGames, now, pickedGameIds)
+    const wantsPick3 = player.pick3Enrolled && needsPick3Reminder(myPicks.length, weekGames, now, pickedGameIds)
 
     let wantsSurvivor = false
     let survivorPickable = 0

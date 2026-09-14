@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "pick3_enrolled" boolean DEFAULT true NOT NULL;

@@ -29,6 +29,19 @@ export default async function MakePicksPage({
     )
   }
 
+  if (!user.pick3Enrolled) {
+    return (
+      <Shell user={user} week={ctx.currentWeek}>
+        <div className="mx-auto max-w-[840px] px-7 py-6 max-lg:px-4">
+          <p className="rounded-xl border border-card bg-surface p-8 text-center text-muted">
+            You&rsquo;re not in the Pick 3 pool this season. Ask the commissioner if that&rsquo;s
+            a mistake — Survivor and the other tabs still work as usual.
+          </p>
+        </div>
+      </Shell>
+    )
+  }
+
   const [games, myPicks, { visible: revealedPicks }, overlays] = await Promise.all([
     getGamesForWeek(ctx.season, ctx.week),
     getUserPicksForWeek(user.id, ctx.season, ctx.week),

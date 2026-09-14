@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from 'react'
 import {
   addUser,
+  enrollPick3Player,
   enrollSurvivorPlayer,
   removePlayer,
   renamePlayer,
@@ -11,6 +12,7 @@ import {
   sendTestEmail,
   setPlayerRole,
   toggleEmailPref,
+  unenrollPick3Player,
   unenrollSurvivorPlayer,
   voidGamePicks,
   type AdminResult,
@@ -24,6 +26,7 @@ interface UserRow {
   role: Role
   emailReminders: boolean
   emailRecaps: boolean
+  pick3Enrolled: boolean
   /** Pre-formatted "(ago) ET timestamp" of their last page load, or null if they've never visited. */
   lastSeen: string | null
   /** Epoch ms of the same instant, for sorting. */
@@ -58,6 +61,8 @@ export interface WeekStatusRow {
   lastSeen: string | null
   /** Epoch ms of the same instant, for sorting. */
   lastSeenMs: number | null
+  /** False for a survivor-only player: the Pick 3 column shows "—" and they never owe picks. */
+  pick3Enrolled: boolean
   /** Pick 3 picks in for the current week (0–3). */
   pick3Count: number
   survivor: 'not-enrolled' | 'eliminated' | 'picked' | 'missing'
@@ -178,7 +183,7 @@ function SyncPanel() {
 
 /** Who still owes picks this week — the nudge list, incomplete players first. */
 function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }) {
-  const owes = (r: WeekStatusRow) => r.pick3Count < 3 || r.survivor === 'missing'
+  const owes = (r: WeekStatusRow) => (r.pick3Enrolled && r.pick3Count < 3) || r.survivor === 'missing'
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
   const toggle = (id: number) =>
     setSelected((prev) => {
@@ -279,6 +284,10 @@ function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }
                 </td>
                 <td className="whitespace-nowrap py-2 pr-4 text-muted">{r.lastSeen ?? 'Never'}</td>
                 <td className="py-2 pr-4">
+                  {!r.pick3Enrolled ? (
+                    <span className="font-bold text-muted">—</span>
+                  ) : (
+                  <>
                   <span className="mr-2 inline-flex gap-1" aria-hidden>
                     {[0, 1, 2].map((i) => (
                       <span
@@ -290,6 +299,8 @@ function WeekStatusPanel({ week, rows }: { week: number; rows: WeekStatusRow[] }
                   <span className={`font-bold tabular-nums ${r.pick3Count < 3 ? 'text-warning' : 'text-success'}`}>
                     {r.pick3Count}/3
                   </span>
+                  </>
+                  )}
                 </td>
                 <td className={`py-2 font-bold ${survivorColor[r.survivor]}`}>{survivorLabel[r.survivor]}</td>
               </tr>
@@ -415,6 +426,7 @@ function UsersPanel({ users }: { users: UserRow[] }) {
                 onToggle={() => setSeenSort(nextLastSeenSort(seenSort))}
               />
               <th className="px-3 py-2 font-semibold uppercase tracking-wider">Emails</th>
+              <th className="px-3 py-2 font-semibold uppercase tracking-wider">Pick 3</th>
               <th className="px-3 py-2 font-semibold uppercase tracking-wider"></th>
             </tr>
           </thead>
@@ -435,6 +447,8 @@ function PlayerRow({ user }: { user: UserRow }) {
   const [emailState, emailAction, emailPending] = useActionState(toggleEmailPref, {})
   const [testState, testAction, testPending] = useActionState(sendTestEmail, {})
   const [roleState, roleAction, rolePending] = useActionState(setPlayerRole, {})
+  const [enrollState, enrollAction, enrollPending] = useActionState(enrollPick3Player, {})
+  const [unenrollState, unenrollAction, unenrollPending] = useActionState(unenrollPick3Player, {})
   return (
     <tr className="border-b border-line last:border-b-0">
       <td className="px-3 py-2 font-semibold">
@@ -558,6 +572,28 @@ function PlayerRow({ user }: { user: UserRow }) {
         </span>
         <Feedback state={emailState} />
         <Feedback state={testState} />
+      </td>
+      <td className="px-3 py-2">
+        <form action={user.pick3Enrolled ? unenrollAction : enrollAction} className="inline">
+          <input type="hidden" name="userId" value={user.id} />
+          <button
+            type="submit"
+            disabled={enrollPending || unenrollPending}
+            title={
+              user.pick3Enrolled
+                ? 'Take this player out of Pick 3 (survivor-only). Only possible while they have no picks this season.'
+                : 'Put this player back in Pick 3'
+            }
+            className={`cursor-pointer rounded-lg border px-3 py-1 text-xs font-bold uppercase disabled:opacity-50 ${
+              user.pick3Enrolled
+                ? 'border-danger text-danger hover:bg-danger/10'
+                : 'border-success text-success hover:bg-success/10'
+            }`}
+          >
+            {user.pick3Enrolled ? 'Unenroll' : 'Enroll'}
+          </button>
+        </form>
+        <Feedback state={enrollState.error || enrollState.info ? enrollState : unenrollState} />
       </td>
       <td className="px-3 py-2 text-right">
         {user.role === 'player' && !user.isSelf && <RemovePlayerButton user={user} />}

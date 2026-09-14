@@ -73,6 +73,7 @@ export default async function AdminPage() {
       // Formatted server-side so the client table never renders in a viewer's local zone.
       lastSeen: u.lastSeenAt ? formatLastSeen(u.lastSeenAt, now) : null,
       lastSeenMs: u.lastSeenAt?.getTime() ?? null,
+      pick3Enrolled: u.pick3Enrolled,
       pick3Count: weekPicksByUser.get(u.id) ?? 0,
       survivor: survivorState,
     }
@@ -90,6 +91,7 @@ export default async function AdminPage() {
           role: u.role,
           emailReminders: u.emailReminders,
           emailRecaps: u.emailRecaps,
+          pick3Enrolled: u.pick3Enrolled,
           lastSeen: u.lastSeenAt ? formatLastSeen(u.lastSeenAt, now) : null,
           lastSeenMs: u.lastSeenAt?.getTime() ?? null,
           isSelf: u.id === user.id,
