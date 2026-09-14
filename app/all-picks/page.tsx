@@ -96,15 +96,27 @@ export default async function AllPicksPage({
                   {(['away', 'home'] as const).map((side) => {
                     const sidePicks = gamePicks.filter((p) => p.side === side)
                     if (sidePicks.length === 0) return null
+                    // Everyone on a side sits on the same locked line, so the line and
+                    // result belong on the team row, not on every name. If they ever
+                    // differ (shouldn't happen), fall back to showing them per name.
+                    const first = sidePicks[0]
+                    const uniform = sidePicks.every(
+                      (p) => p.lockedSpread === first.lockedSpread && p.result === first.result
+                    )
+                    const detail = (p: (typeof sidePicks)[number]) => (
+                      <>
+                        <span className="tabular-nums text-muted">{formatSpread(p.lockedSpread)}</span>
+                        <ChipResult
+                          result={p.result}
+                          cover={live ? liveCover(p.side, p.lockedSpread, game.homeScore, game.awayScore) : null}
+                        />
+                      </>
+                    )
                     return (
                       <div key={side} className="mb-2 rounded-[10px] bg-surface-3 px-3 py-2.5 last:mb-0">
-                        <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-ink-2">
-                          <TeamLogo
-                            src={side === 'away' ? game.awayTeamLogo : game.homeTeamLogo}
-                            abbr={side === 'away' ? game.awayTeamAbbr : game.homeTeamAbbr}
-                            small
-                          />
+                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-ink-2">
                           {side === 'away' ? game.awayTeamName : game.homeTeamName}
+                          {uniform && detail(first)}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {sidePicks.map((p) => (
@@ -113,13 +125,7 @@ export default async function AllPicksPage({
                               className="flex items-center gap-[7px] rounded-[7px] border border-control bg-header px-[9px] py-[5px] text-xs"
                             >
                               <strong>{p.displayName}</strong>
-                              <span className="tabular-nums text-muted">{formatSpread(p.lockedSpread)}</span>
-                              <ChipResult
-                                result={p.result}
-                                cover={
-                                  live ? liveCover(p.side, p.lockedSpread, game.homeScore, game.awayScore) : null
-                                }
-                              />
+                              {!uniform && detail(p)}
                             </span>
                           ))}
                         </div>
