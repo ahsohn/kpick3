@@ -210,14 +210,11 @@ async function runRecapPass(now: Date): Promise<number> {
             : `game ${p.gameId}`
           return { label, result: p.result as PickResult }
         })
-        const topStandings = standingsRows.slice(0, 5).map((s) => ({
+        // The whole table — the pool is small enough that a top-N cut just reads as
+        // players going missing.
+        const standings = standingsRows.map((s) => ({
           displayName: s.displayName, points: s.points, isYou: s.userId === player.id,
         }))
-        const myRank = standingsRows.findIndex((s) => s.userId === player.id)
-        if (myRank >= 5) {
-          const s = standingsRows[myRank]
-          topStandings.push({ displayName: s.displayName, points: s.points, isYou: true })
-        }
 
         const unsub = unsubscribeUrl(player.id)
         const content = recapEmail({
@@ -226,7 +223,7 @@ async function runRecapPass(now: Date): Promise<number> {
           myPicks: pickLines,
           weekPoints: points,
           parlay,
-          standings: topStandings,
+          standings,
           survivorEliminated: eliminated,
           survivorChampions: champions,
           unsubscribeUrl: unsub,

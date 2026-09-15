@@ -87,6 +87,8 @@ const RESULT_MARK: Record<PickResult, string> = {
   win: '✓', loss: '✗', push: '–', void: '–', pending: '·',
 }
 
+const pts = (n: number) => `${n} pt${n === 1 ? '' : 's'}`
+
 export function recapEmail(input: RecapEmailInput): EmailContent {
   const subject = `Week ${input.week} results — kpick3`
 
@@ -95,7 +97,7 @@ export function recapEmail(input: RecapEmailInput): EmailContent {
     `You scored ${input.weekPoints} point${input.weekPoints === 1 ? '' : 's'} in week ${input.week}` +
     (input.parlay ? ' — 3-for-3 parlay! 🎉' : '.')
   const standingsLines = input.standings.map(
-    (s, i) => `${i + 1}. ${s.displayName}${s.isYou ? ' (you)' : ''} — ${s.points} pts`
+    (s, i) => `${i + 1}. ${s.displayName}${s.isYou ? ' (you)' : ''} — ${pts(s.points)}`
   )
   const survivorLines = [
     ...(input.survivorEliminated.length > 0
@@ -119,7 +121,7 @@ export function recapEmail(input: RecapEmailInput): EmailContent {
         ? `<ul style="padding-left:20px">${input.myPicks.map((p) => `<li>${RESULT_MARK[p.result]} ${esc(p.label)} <em>(${p.result})</em></li>`).join('')}</ul>`
         : `<p>You made no picks this week.</p>`) +
       `<p><strong>Standings</strong></p><ol style="padding-left:20px">${input.standings
-        .map((s) => `<li>${esc(s.displayName)}${s.isYou ? ' <strong>(you)</strong>' : ''} — ${s.points} pts</li>`)
+        .map((s) => `<li>${esc(s.displayName)}${s.isYou ? ' <strong>(you)</strong>' : ''} — ${pts(s.points)}</li>`)
         .join('')}</ol>` +
       survivorLines.map((l) => `<p>${esc(l)}</p>`).join('') +
       `<p><a href="${SITE_URL}/standings">Full standings →</a></p>`,

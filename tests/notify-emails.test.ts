@@ -50,6 +50,7 @@ describe('recapEmail', () => {
       standings: [
         { displayName: 'Sam', points: 10, isYou: false },
         { displayName: 'Alex', points: 8, isYou: true },
+        { displayName: 'Pat', points: 1, isYou: false },
       ],
       survivorEliminated: ['Pat'],
       survivorChampions: [],
@@ -60,6 +61,9 @@ describe('recapEmail', () => {
     expect(html).toContain('Pat')
     expect(html).toContain(unsubscribeUrl)
     expect(text).toContain('1 point')
+    expect(text).toContain('1. Sam — 10 pts')
+    expect(text).toContain('2. Alex (you) — 8 pts')
+    expect(text).toContain('3. Pat — 1 pt')
   })
 })
 
