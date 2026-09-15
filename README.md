@@ -140,10 +140,6 @@ view-as rules.
 
 ## Scheduled sync (cron)
 
-> **⚠ TBD — not set up yet (as of July 2026).** The cron-job.org job below still needs
-> to be created before the season starts in September. Until then, lines and scores only
-> update via the **Run sync now** button in `/admin`.
-
 Vercel **Hobby** only allows daily crons, so schedule an external job
 ([cron-job.org](https://cron-job.org)) **hourly at :55** — hourly is enough now that
 lines freeze at fixed lock times, and :55 puts the last pre-lock sync at 12:55 PM ET

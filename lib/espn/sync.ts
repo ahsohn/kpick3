@@ -21,13 +21,21 @@ export async function runSyncPass() {
   // about instead (the year must be pinned — ESPN serves the *previous* season's week 1
   // otherwise), so picks open as soon as ESPN posts lines. During playoffs this just
   // re-upserts already-final week 1 games, which is harmless.
-  if (data.season?.type !== 2) {
+  const inRegularSeason = data.season?.type === 2
+  if (!inRegularSeason) {
     data = await fetchScoreboard({ season: nflSeasonYear(new Date()), week: 1 })
   }
 
   const events: any[] = (data.events ?? []).filter(isRegularSeason)
   const parsed = events.map(parseEvent)
   for (const g of parsed) await upsertGame(g)
+
+  // Look-ahead: ESPN's default scoreboard lingers on a finished week for a day or two
+  // after Monday night. Nothing here moves to the next week until its games exist in
+  // the DB, so once every game of the scoreboard week is done, pull the following
+  // week(s) now rather than waiting for ESPN to flip. (Skipped on the off-season
+  // fallback above: a finished week 1 there would walk the whole season every pass.)
+  if (inRegularSeason) parsed.push(...(await syncWeeksAhead(parsed)))
 
   // Catch-up: a game from a previous week that started but never got a final (e.g. the
   // cron was down, or a postponed game moved weeks) won't be on the current scoreboard.
@@ -51,6 +59,30 @@ export async function runSyncPass() {
 
   const graded = await gradeFinishedGames()
   return { synced: parsed.length, ...graded }
+}
+
+const REGULAR_SEASON_WEEKS = 18
+
+/**
+ * Given the games of the scoreboard week, upserts each subsequent regular-season week
+ * whose predecessor is entirely final/canceled (and always at least the very next week
+ * once the current one is done), stopping at the first week still in play or at week 18.
+ * Returns everything it upserted so the caller's catch-up pass treats those weeks as
+ * freshly synced.
+ */
+async function syncWeeksAhead(current: ParsedGame[]): Promise<ParsedGame[]> {
+  const fetched: ParsedGame[] = []
+  let batch = current
+  while (batch.length > 0 && batch.every((g) => g.completed || g.canceled)) {
+    const { season, week } = batch[0]
+    if (week >= REGULAR_SEASON_WEEKS) break
+    const nextData = await fetchScoreboard({ season, week: week + 1 })
+    const nextEvents: any[] = (nextData.events ?? []).filter(isRegularSeason)
+    batch = nextEvents.map(parseEvent)
+    for (const g of batch) await upsertGame(g)
+    fetched.push(...batch)
+  }
+  return fetched
 }
 
 /**
