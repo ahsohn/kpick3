@@ -147,14 +147,30 @@ describe('computeChampions', () => {
     expect(r.championUserIds).toEqual([])
   })
 
-  it('season ends fully graded with 2+ alive → all co-champions', () => {
+  it('final week fully graded with 2+ alive → all co-champions', () => {
     const r = computeChampions(
       statuses([[1, alive], [2, alive], [3, outIn(1)]]),
-      [week(1, true), week(2, true)]
+      [week(1, true), week(2, true)],
+      2
     )
     expect(r.over).toBe(true)
     expect(r.championUserIds.sort()).toEqual([1, 2])
     expect(r.decidedWeek).toBe(2)
+  })
+
+  it('every synced week graded is not the season ending (week 2 not yet synced)', () => {
+    // After week 1's Monday game the DB may hold only week 1 until the next sync
+    // upserts week 2 — that must not crown everyone still alive.
+    const r = computeChampions(
+      statuses([[1, alive], [2, alive], [3, outIn(1)]]),
+      [week(1, true)]
+    )
+    expect(r).toEqual({ over: false, championUserIds: [], decidedWeek: null })
+  })
+
+  it('still ends early when one player remains, whatever weeks are synced', () => {
+    const r = computeChampions(statuses([[1, alive], [2, outIn(1)]]), [week(1, true)])
+    expect(r).toEqual({ over: true, championUserIds: [1], decidedWeek: 1 })
   })
 
   it('no entrants → not over', () => {

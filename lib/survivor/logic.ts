@@ -1,5 +1,8 @@
 export type SurvivorResult = 'pending' | 'win' | 'loss' | 'void'
 
+/** The NFL regular season runs 18 weeks; the survivor pool can't end on its own before then. */
+export const REGULAR_SEASON_WEEKS = 18
+
 /** Straight-up grading. A tie is a loss — survivor has no push. */
 export function gradeSurvivorPick(
   side: 'home' | 'away',
@@ -87,12 +90,17 @@ export interface ChampionOutcome {
  * where every game is graded count as decided, so a loss graded on Thursday can never
  * crown a champion that Sunday's results would un-crown. Walks decided weeks in order:
  * the pool ends the first week after which one player remains (champion) or none remain
- * (that week's casualties are co-champions). If the season ends with 2+ alive, they're
- * all co-champions.
+ * (that week's casualties are co-champions). If the final regular-season week is fully
+ * graded with 2+ alive, they're all co-champions.
+ *
+ * `weeks` only holds the weeks synced so far (the ESPN sync pulls one scoreboard week at
+ * a time), so "every known week is graded" says nothing about the season being over —
+ * only `finalWeek` itself being graded does.
  */
 export function computeChampions(
   statuses: Map<number, SurvivorStatus>,
-  weeks: SurvivorWeekInfo[]
+  weeks: SurvivorWeekInfo[],
+  finalWeek: number = REGULAR_SEASON_WEEKS
 ): ChampionOutcome {
   const entrants = [...statuses.keys()]
   if (entrants.length === 0) return { over: false, championUserIds: [], decidedWeek: null }
@@ -112,11 +120,11 @@ export function computeChampions(
     }
   }
 
-  const lastWeek = weeks[weeks.length - 1]
-  if (lastWeek && weeks.every((w) => w.fullyGraded)) {
+  const last = weeks.find((w) => w.week === finalWeek)
+  if (last && weeks.every((w) => w.week > finalWeek || w.fullyGraded)) {
     const alive = entrants.filter((id) => statuses.get(id)!.alive)
     if (alive.length >= 2) {
-      return { over: true, championUserIds: alive, decidedWeek: lastWeek.week }
+      return { over: true, championUserIds: alive, decidedWeek: finalWeek }
     }
   }
 
