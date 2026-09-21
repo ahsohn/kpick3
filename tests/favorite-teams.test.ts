@@ -42,6 +42,14 @@ describe('favoriteTeams', () => {
     expect(rows[0].teams).toEqual([{ abbr: 'KC', logo: 'KC.png', wins: 1 }])
     expect(rows[0].count).toBe(4)
   })
+  it('breaks a count tie by most correct picks, then name', () => {
+    const rows = favoriteTeams([
+      pick(1, 'KC', 'loss'), pick(1, 'KC', 'loss'),
+      pick(2, 'DAL', 'win'), pick(2, 'DAL', 'loss'),
+      pick(3, 'SF', 'win'), pick(3, 'SF', 'win'),
+    ])
+    expect(rows.map((r) => r.displayName)).toEqual(['P3', 'P2', 'P1'])
+  })
   it('handles no picks', () => {
     expect(favoriteTeams([])).toEqual([])
   })

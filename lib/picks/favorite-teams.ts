@@ -15,13 +15,16 @@ export interface FavoriteTeamRow {
    *  many of those picks graded as a win. */
   teams: { abbr: string; logo: string; wins: number }[]
   count: number
+  /** Best win count among the top team(s) — the tiebreaker between equal counts. */
+  wins: number
 }
 
 /** A team picked (or faded) only once says nothing about loyalty. */
 export const MIN_TEAM_COUNT = 2
 
 /**
- * Each player's most-picked team, players ranked by that count (ties by name). Players
+ * Each player's most-picked team, players ranked by that count, then by how many of
+ * those picks won, then by name. Players
  * whose top count is below `minCount` are left out. Feed it opponent teams instead to
  * get "picked against" the same way.
  */
@@ -45,9 +48,12 @@ export function favoriteTeams(picks: TeamPick[], minCount = MIN_TEAM_COUNT): Fav
       .filter(([, t]) => t.n === count)
       .map(([abbr, t]) => ({ abbr, logo: t.logo, wins: t.wins }))
       .sort((a, b) => a.abbr.localeCompare(b.abbr))
-    return { userId, displayName: player.displayName, teams, count }
+    const wins = Math.max(...teams.map((t) => t.wins))
+    return { userId, displayName: player.displayName, teams, count, wins }
   })
   return rows
     .filter((r) => r.count >= minCount)
-    .sort((a, b) => b.count - a.count || a.displayName.localeCompare(b.displayName))
+    .sort(
+      (a, b) => b.count - a.count || b.wins - a.wins || a.displayName.localeCompare(b.displayName)
+    )
 }
