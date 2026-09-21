@@ -4,6 +4,7 @@ import { and, asc, desc, eq, lte, max } from 'drizzle-orm'
 import type { PickResult } from './grading'
 import type { RevealedPick } from './pairs'
 import type { TeamPick } from './favorite-teams'
+import type { SpreadPick } from './tendencies'
 import { aggregateStandings, type PlayerStandings, type StandingsPickRow } from './standings'
 
 /** Latest season present in the games table (null before the first sync). */
@@ -163,7 +164,7 @@ export async function getVisibleWeekPicks(
   return { visible, hiddenCountByGame }
 }
 
-export interface RevealedSeasonPick extends RevealedPick, TeamPick {
+export interface RevealedSeasonPick extends RevealedPick, TeamPick, SpreadPick {
   /** The team the pick was made against. */
   opponentAbbr: string
   opponentLogo: string
@@ -180,6 +181,7 @@ export async function getRevealedSeasonPicks(
       gameId: picks.gameId,
       side: picks.side,
       result: picks.result,
+      lockedSpread: picks.lockedSpread,
       homeTeamAbbr: games.homeTeamAbbr,
       awayTeamAbbr: games.awayTeamAbbr,
       homeTeamLogo: games.homeTeamLogo,
@@ -195,6 +197,7 @@ export async function getRevealedSeasonPicks(
     gameId: r.gameId,
     side: r.side as 'home' | 'away',
     result: r.result as PickResult,
+    lockedSpread: r.lockedSpread,
     teamAbbr: r.side === 'home' ? r.homeTeamAbbr : r.awayTeamAbbr,
     teamLogo: r.side === 'home' ? r.homeTeamLogo : r.awayTeamLogo,
     opponentAbbr: r.side === 'home' ? r.awayTeamAbbr : r.homeTeamAbbr,
