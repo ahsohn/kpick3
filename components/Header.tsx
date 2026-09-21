@@ -10,6 +10,7 @@ const PICK3_TABS = [
   { href: '/my-picks', label: 'My Picks' },
   { href: '/all-picks', label: 'All Picks' },
   { href: '/standings', label: 'Standings' },
+  { href: '/stats', label: 'Stats' },
 ]
 
 const SURVIVOR_TABS = [

@@ -1,7 +1,8 @@
 import { db } from '@/lib/db'
 import { games, picks, users, type Game, type Pick } from '@/lib/db/schema'
-import { and, asc, desc, eq, max } from 'drizzle-orm'
+import { and, asc, desc, eq, lte, max } from 'drizzle-orm'
 import type { PickResult } from './grading'
+import type { RevealedPick } from './pairs'
 import { aggregateStandings, type PlayerStandings, type StandingsPickRow } from './standings'
 
 /** Latest season present in the games table (null before the first sync). */
@@ -159,4 +160,20 @@ export async function getVisibleWeekPicks(
     }
   }
   return { visible, hiddenCountByGame }
+}
+
+/** Every pick this season whose game has kicked off — what the whole pool can see. */
+export async function getRevealedSeasonPicks(season: number): Promise<RevealedPick[]> {
+  const rows = await db
+    .select({
+      userId: picks.userId,
+      displayName: users.displayName,
+      gameId: picks.gameId,
+      side: picks.side,
+    })
+    .from(picks)
+    .innerJoin(users, eq(users.id, picks.userId))
+    .innerJoin(games, eq(games.id, picks.gameId))
+    .where(and(eq(picks.season, season), lte(games.kickoff, new Date())))
+  return rows.map((r) => ({ ...r, side: r.side as 'home' | 'away' }))
 }
