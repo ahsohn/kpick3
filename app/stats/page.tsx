@@ -118,6 +118,7 @@ function LoyaltyTable({
             <span className={headerCell}>PLAYER</span>
             <span className={headerCell}>TEAM</span>
             <span className={`${headerCell} text-right`}>TIMES</span>
+            <span className={`${headerCell} text-right`}>CORRECT</span>
           </div>
           {rows.map((r, i) => {
             const you = r.userId === viewerId
@@ -143,6 +144,14 @@ function LoyaltyTable({
                   ))}
                 </span>
                 <span className="text-right text-[17px] font-extrabold tabular-nums">{r.count}</span>
+                <span className="flex flex-col items-end text-[15px] font-bold tabular-nums text-muted">
+                  {r.teams.map((t) => (
+                    <span key={t.abbr}>
+                      {t.wins}
+                      <span className="text-xs font-semibold text-placeholder">/{r.count}</span>
+                    </span>
+                  ))}
+                </span>
               </div>
             )
           })}
