@@ -80,8 +80,8 @@ export default async function StatsPage() {
         />
 
         <LoyaltyTable
-          title="PICKED AGAINST"
-          helper="Each player’s most-faded team · picked against at least twice"
+          title="NO FAITH"
+          helper="The team each player keeps betting against · at least twice"
           rows={faded}
           viewerId={user.id}
         />
