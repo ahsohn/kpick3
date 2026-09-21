@@ -8,6 +8,7 @@ import { formatKickoffDay, formatKickoffTime, formatSpread, spreadForSide } from
 import type { PickResult } from '@/lib/picks/grading'
 import { TeamLogo } from '@/components/TeamLogo'
 import { liveCover, LIVE_COVER_LABEL } from '@/lib/picks/live-cover'
+import { formatDollars, STAKE, summarizeWeek } from '@/lib/picks/week-summary'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,8 @@ export default async function AllPicksPage({
   const shown = games.filter(
     (g) => visible.some((p) => p.gameId === g.id) || (hiddenCountByGame.get(g.id) ?? 0) > 0
   )
+  // Hidden picks are pre-kickoff and therefore pending, so the visible set is enough.
+  const summary = summarizeWeek(visible.map((p) => p.result))
 
   return (
     <Shell user={user} week={ctx.currentWeek}>
@@ -50,6 +53,29 @@ export default async function AllPicksPage({
             No picks for week {ctx.week} yet.
           </p>
         ) : (
+          <>
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 rounded-xl border border-card bg-surface px-[18px] py-3">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="text-[11px] font-extrabold tracking-[.1em] text-muted">EVERYONE · WEEK {ctx.week}</span>
+                <span className="text-[17px] font-extrabold tabular-nums">
+                  {summary.wins}-{summary.losses}
+                  {summary.pushes > 0 ? `-${summary.pushes}` : ''}
+                </span>
+                {summary.pending > 0 && (
+                  <span className="text-xs font-semibold text-placeholder">{summary.pending} pending</span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-2 text-xs text-muted">
+                <span>At ${STAKE} a pick (-110):</span>
+                <span
+                  className={`text-[15px] font-extrabold tabular-nums ${
+                    summary.dollars > 0.5 ? 'text-green' : summary.dollars < -0.5 ? 'text-accent' : 'text-ink'
+                  }`}
+                >
+                  {formatDollars(summary.dollars)}
+                </span>
+              </div>
+            </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,440px),1fr))] gap-3.5">
             {shown.map((game) => {
               const gamePicks = visible.filter((p) => p.gameId === game.id)
@@ -182,6 +208,7 @@ export default async function AllPicksPage({
               )
             })}
           </div>
+          </>
         )}
       </div>
     </Shell>
