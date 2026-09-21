@@ -1,15 +1,19 @@
+import type { PickResult } from './grading'
+
 export interface TeamPick {
   userId: number
   displayName: string
   teamAbbr: string
   teamLogo: string
+  result: PickResult
 }
 
 export interface FavoriteTeamRow {
   userId: number
   displayName: string
-  /** The player's most-picked team(s) — several if tied, alphabetical. */
-  teams: { abbr: string; logo: string }[]
+  /** The player's most-picked team(s) — several if tied, alphabetical. `wins` is how
+   *  many of those picks graded as a win. */
+  teams: { abbr: string; logo: string; wins: number }[]
   count: number
 }
 
@@ -22,11 +26,15 @@ export const MIN_TEAM_COUNT = 2
  * get "picked against" the same way.
  */
 export function favoriteTeams(picks: TeamPick[], minCount = MIN_TEAM_COUNT): FavoriteTeamRow[] {
-  const byPlayer = new Map<number, { displayName: string; teams: Map<string, { logo: string; n: number }> }>()
+  const byPlayer = new Map<
+    number,
+    { displayName: string; teams: Map<string, { logo: string; n: number; wins: number }> }
+  >()
   for (const p of picks) {
     const player = byPlayer.get(p.userId) ?? { displayName: p.displayName, teams: new Map() }
-    const team = player.teams.get(p.teamAbbr) ?? { logo: p.teamLogo, n: 0 }
+    const team = player.teams.get(p.teamAbbr) ?? { logo: p.teamLogo, n: 0, wins: 0 }
     team.n += 1
+    if (p.result === 'win') team.wins += 1
     player.teams.set(p.teamAbbr, team)
     byPlayer.set(p.userId, player)
   }
@@ -35,7 +43,7 @@ export function favoriteTeams(picks: TeamPick[], minCount = MIN_TEAM_COUNT): Fav
     const count = Math.max(...[...player.teams.values()].map((t) => t.n))
     const teams = [...player.teams.entries()]
       .filter(([, t]) => t.n === count)
-      .map(([abbr, t]) => ({ abbr, logo: t.logo }))
+      .map(([abbr, t]) => ({ abbr, logo: t.logo, wins: t.wins }))
       .sort((a, b) => a.abbr.localeCompare(b.abbr))
     return { userId, displayName: player.displayName, teams, count }
   })

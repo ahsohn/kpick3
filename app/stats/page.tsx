@@ -113,7 +113,7 @@ function LoyaltyTable({
         </p>
       ) : (
         <div className="overflow-hidden rounded-[14px] border border-card bg-surface">
-          <div className="grid grid-cols-[40px_1fr_1fr_72px] border-b border-control bg-surface-2 px-[18px] py-3">
+          <div className="grid grid-cols-[40px_1fr_1fr_72px_80px] border-b border-control bg-surface-2 px-[18px] py-3">
             <span className={headerCell}>#</span>
             <span className={headerCell}>PLAYER</span>
             <span className={headerCell}>TEAM</span>
@@ -124,7 +124,7 @@ function LoyaltyTable({
             return (
               <div
                 key={r.userId}
-                className={`grid grid-cols-[40px_1fr_1fr_72px] items-center border-b border-hairline px-[18px] py-3 last:border-b-0 ${
+                className={`grid grid-cols-[40px_1fr_1fr_72px_80px] items-center border-b border-hairline px-[18px] py-3 last:border-b-0 ${
                   you ? 'bg-accent/5' : ''
                 }`}
               >

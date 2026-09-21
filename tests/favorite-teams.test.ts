@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { favoriteTeams, type TeamPick } from '@/lib/picks/favorite-teams'
 
-const pick = (userId: number, teamAbbr: string): TeamPick => ({
+const pick = (userId: number, teamAbbr: string, result: TeamPick['result'] = 'win'): TeamPick => ({
   userId,
   displayName: `P${userId}`,
   teamAbbr,
   teamLogo: `${teamAbbr}.png`,
+  result,
 })
 
 describe('favoriteTeams', () => {
@@ -33,6 +34,13 @@ describe('favoriteTeams', () => {
     const picks = [pick(1, 'KC'), pick(1, 'BUF'), pick(2, 'DAL'), pick(2, 'DAL')]
     expect(favoriteTeams(picks).map((r) => r.displayName)).toEqual(['P2'])
     expect(favoriteTeams(picks, 1).map((r) => r.displayName)).toEqual(['P2', 'P1'])
+  })
+  it('counts how many of those picks were correct', () => {
+    const rows = favoriteTeams([
+      pick(1, 'KC', 'win'), pick(1, 'KC', 'loss'), pick(1, 'KC', 'pending'), pick(1, 'KC', 'push'),
+    ])
+    expect(rows[0].teams).toEqual([{ abbr: 'KC', logo: 'KC.png', wins: 1 }])
+    expect(rows[0].count).toBe(4)
   })
   it('handles no picks', () => {
     expect(favoriteTeams([])).toEqual([])
