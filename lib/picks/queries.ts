@@ -163,10 +163,16 @@ export async function getVisibleWeekPicks(
   return { visible, hiddenCountByGame }
 }
 
+export interface RevealedSeasonPick extends RevealedPick, TeamPick {
+  /** The team the pick was made against. */
+  opponentAbbr: string
+  opponentLogo: string
+}
+
 /** Every pick this season whose game has kicked off — what the whole pool can see. */
 export async function getRevealedSeasonPicks(
   season: number
-): Promise<(RevealedPick & TeamPick)[]> {
+): Promise<RevealedSeasonPick[]> {
   const rows = await db
     .select({
       userId: picks.userId,
@@ -189,5 +195,7 @@ export async function getRevealedSeasonPicks(
     side: r.side as 'home' | 'away',
     teamAbbr: r.side === 'home' ? r.homeTeamAbbr : r.awayTeamAbbr,
     teamLogo: r.side === 'home' ? r.homeTeamLogo : r.awayTeamLogo,
+    opponentAbbr: r.side === 'home' ? r.awayTeamAbbr : r.homeTeamAbbr,
+    opponentLogo: r.side === 'home' ? r.awayTeamLogo : r.homeTeamLogo,
   }))
 }
