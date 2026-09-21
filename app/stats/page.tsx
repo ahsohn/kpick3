@@ -3,7 +3,7 @@ import { getCurrentSeason, getCurrentWeek, getRevealedSeasonPicks } from '@/lib/
 import { commonPickPairs } from '@/lib/picks/pairs'
 import { favoriteTeams, type FavoriteTeamRow } from '@/lib/picks/favorite-teams'
 import { TeamLogo } from '@/components/TeamLogo'
-import { favoritesAndDogs, spreadTotals } from '@/lib/picks/tendencies'
+import { coverMargins, favoritesAndDogs, spreadTotals } from '@/lib/picks/tendencies'
 import { Shell } from '@/components/Shell'
 
 export const dynamic = 'force-dynamic'
@@ -25,6 +25,7 @@ export default async function StatsPage() {
   const favDog = favoritesAndDogs(revealed)
   const totals = spreadTotals(revealed)
   const maxTotal = totals[0]?.total ?? 0
+  const margins = coverMargins(revealed)
 
   return (
     <Shell user={user} week={currentWeek}>
@@ -175,6 +176,53 @@ export default async function StatsPage() {
             </div>
           )}
         </section>
+
+        <section className="mt-8">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-[15px] font-extrabold tracking-[.06em]">BEATING THE NUMBER</h2>
+            <span className="text-xs text-muted">Points past the line, net · cover by 3 is +3, miss by 3 is −3</span>
+          </div>
+          {margins.length === 0 ? (
+            <p className="rounded-xl border border-card bg-surface p-8 text-center text-muted">No graded picks yet.</p>
+          ) : (
+            <div className="overflow-hidden rounded-[14px] border border-card bg-surface">
+              <div className="grid grid-cols-[40px_1fr_72px_72px_84px] border-b border-control bg-surface-2 px-[18px] py-3">
+                <span className={headerCell}>#</span>
+                <span className={headerCell}>PLAYER</span>
+                <span className={`${headerCell} text-right`}>BEST</span>
+                <span className={`${headerCell} text-right`}>WORST</span>
+                <span className={`${headerCell} text-right`}>NET</span>
+              </div>
+              {margins.map((r, i) => {
+                const you = r.userId === user.id
+                const tone = r.total > 0 ? 'text-green' : r.total < 0 ? 'text-accent' : 'text-muted'
+                return (
+                  <div
+                    key={r.userId}
+                    className={`grid grid-cols-[40px_1fr_72px_72px_84px] items-center border-b border-hairline px-[18px] py-3 last:border-b-0 ${
+                      you ? 'bg-accent/5' : ''
+                    }`}
+                  >
+                    <span className="text-sm font-bold tabular-nums text-muted">{i + 1}</span>
+                    <span className="flex min-w-0 items-baseline gap-2">
+                      <span
+                        className={`truncate text-[14px] ${you ? 'font-extrabold text-accent-text' : 'font-semibold text-ink'}`}
+                      >
+                        {r.displayName}
+                      </span>
+                      <span className="whitespace-nowrap text-xs text-placeholder">
+                        {signed(r.average)} avg · {r.picks} pick{r.picks === 1 ? '' : 's'}
+                      </span>
+                    </span>
+                    <span className="text-right text-[15px] font-bold tabular-nums text-muted">{signed(r.best)}</span>
+                    <span className="text-right text-[15px] font-bold tabular-nums text-muted">{signed(r.worst)}</span>
+                    <span className={`text-right text-[17px] font-extrabold tabular-nums ${tone}`}>{signed(r.total)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </Shell>
   )
@@ -265,4 +313,11 @@ function RecordCell({ picks, wins }: { picks: number; wins: number }) {
 /** 23.5 → "23.5", 24 → "24", 11.75 → "11.8" */
 function trimNum(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '')
+}
+
+/** 3 → "+3", -2.5 → "−2.5", 0 → "0" */
+function signed(n: number): string {
+  const rounded = Number(trimNum(Math.abs(n)))
+  if (rounded === 0) return '0'
+  return (n > 0 ? '+' : '−') + trimNum(rounded)
 }
