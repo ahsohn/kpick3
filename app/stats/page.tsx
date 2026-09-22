@@ -11,6 +11,9 @@ export const dynamic = 'force-dynamic'
 const TOP_PAIRS = 15
 const TOP_LOYAL = 15
 const headerCell = 'text-[11px] font-bold tracking-[.1em] text-muted'
+/** Beating the Number: rank · player · net on phones; best and worst get their own columns from `sm` up. */
+const marginCols = 'grid-cols-[32px_1fr_64px] sm:grid-cols-[40px_1fr_72px_72px_84px]'
+const marginPad = 'px-3.5 sm:px-[18px]'
 
 export default async function StatsPage() {
   const user = await requireUser()
@@ -186,11 +189,13 @@ export default async function StatsPage() {
             <p className="rounded-xl border border-card bg-surface p-8 text-center text-muted">No graded picks yet.</p>
           ) : (
             <div className="overflow-hidden rounded-[14px] border border-card bg-surface">
-              <div className="grid grid-cols-[40px_1fr_72px_72px_84px] border-b border-control bg-surface-2 px-[18px] py-3">
+              <div
+                className={`grid border-b border-control bg-surface-2 py-3 ${marginCols} ${marginPad}`}
+              >
                 <span className={headerCell}>#</span>
                 <span className={headerCell}>PLAYER</span>
-                <span className={`${headerCell} text-right`}>BEST</span>
-                <span className={`${headerCell} text-right`}>WORST</span>
+                <span className={`${headerCell} hidden text-right sm:block`}>BEST</span>
+                <span className={`${headerCell} hidden text-right sm:block`}>WORST</span>
                 <span className={`${headerCell} text-right`}>NET</span>
               </div>
               {margins.map((r, i) => {
@@ -199,23 +204,31 @@ export default async function StatsPage() {
                 return (
                   <div
                     key={r.userId}
-                    className={`grid grid-cols-[40px_1fr_72px_72px_84px] items-center border-b border-hairline px-[18px] py-3 last:border-b-0 ${
+                    className={`grid items-center border-b border-hairline py-3 last:border-b-0 ${marginCols} ${marginPad} ${
                       you ? 'bg-accent/5' : ''
                     }`}
                   >
                     <span className="text-sm font-bold tabular-nums text-muted">{i + 1}</span>
-                    <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-2">
                       <span
                         className={`truncate text-[14px] ${you ? 'font-extrabold text-accent-text' : 'font-semibold text-ink'}`}
                       >
                         {r.displayName}
                       </span>
-                      <span className="whitespace-nowrap text-xs text-placeholder">
+                      <span className="text-xs tabular-nums text-placeholder sm:whitespace-nowrap">
                         {signed(r.average)} avg · {r.picks} pick{r.picks === 1 ? '' : 's'}
+                        {/* Best / worst live here on phones, where their columns are hidden. */}
+                        <span className="sm:hidden">
+                          {' '}· {signed(r.best)} best · {signed(r.worst)} worst
+                        </span>
                       </span>
                     </span>
-                    <span className="text-right text-[15px] font-bold tabular-nums text-muted">{signed(r.best)}</span>
-                    <span className="text-right text-[15px] font-bold tabular-nums text-muted">{signed(r.worst)}</span>
+                    <span className="hidden text-right text-[15px] font-bold tabular-nums text-muted sm:block">
+                      {signed(r.best)}
+                    </span>
+                    <span className="hidden text-right text-[15px] font-bold tabular-nums text-muted sm:block">
+                      {signed(r.worst)}
+                    </span>
                     <span className={`text-right text-[17px] font-extrabold tabular-nums ${tone}`}>{signed(r.total)}</span>
                   </div>
                 )
